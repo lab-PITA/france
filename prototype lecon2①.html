@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>フランス語 冠詞ドリル 完全版</title>
+    <style>
+        :root {
+            --masculin-blue: #007bff;
+            --feminin-red: #dc3545;
+            --unknown-gray: #6c757d;
+            --bg-light: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-light);
+            margin: 0;
+            display: grid; /* flexを使わずgridで中央寄せ */
+            place-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 430px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            height: 100%;
+        }
+
+        header {
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 2px solid #eee;
+            position: relative;
+            background: white;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .help-btn {
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            width: 34px; height: 34px; background: #eee; color: #333;
+            border: 1px solid #ccc; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 1.2rem; font-weight: bold;
+        }
+
+        /* 表示切り替え：ID指定なし、クラスのみで制御 */
+        .screen { 
+            display: none; 
+            flex-direction: column; 
+            height: 100%; 
+            width: 100%;
+            box-sizing: border-box; 
+            overflow: hidden; 
+        }
+        .screen.active { 
+            display: block !important;
+        }
+
+        /* 1. 設定画面 */
+        #setup-screen { padding: 40px 20px; text-align: center; justify-content: center; }
+        .setup-group { margin-bottom: 30px; text-align: left; }
+        select { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; font-size: 1rem; border: 1px solid #ddd; }
+        .start-btn { width: 100%; height: 60px; background: var(--masculin-blue); color: white; border: none; border-radius: 15px; font-size: 1.2rem; font-weight: bold; cursor: pointer; }
+
+        /* 2. クイズ画面 */
+        .question-box { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
+        .top-info { text-align: right; font-size: 0.8rem; color: #999; height: 20px; }
+
+        /* 単語カード */
+        .card-container { width: 100%; min-height: 200px; margin: 10px auto; cursor: pointer; perspective: 1000px; }
+        .card { width: 100%; height: 200px; position: relative; transition: transform 0.6s; transform-style: preserve-3d; }
+        .card.is-flipped { transform: rotateY(180deg); }
+        .card-face {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border-radius: 20px; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 20px; box-sizing: border-box; text-align: center;
+        }
+        .card-front { font-size: 1.6rem; font-weight: bold; line-height: 1.5; }
+        .card-back { transform: rotateY(180deg); background: #fdfdfd; color: #555; font-size: 1.4rem; border: 1px solid #eee; }
+        /* 左右のマージンを5pxから10pxに増やして重なりを解消 */
+        /* 1. vertical-align を baseline に変えることで文字の下に線を配置します */
+        /* 2. margin をさらに広げ、左右の文字との衝突を防ぎます */
+        .blank-line { 
+    display: inline-block; 
+    width: 60px; 
+    /* 文字と同じ高さを確保することで、行間計算にスペースを含ませます */
+    height: 1.2em; 
+    border-bottom: 3px solid var(--masculin-blue); 
+    margin: 0 12px; 
+    /* ベースラインを合わせ、重なりを防ぎます */
+    vertical-align: text-bottom; 
+}
+        /* 選択肢：2列×3行のグリッド */
+        .choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding-bottom: 20px; }
+        .btn-choice {
+            height: 70px; font-size: 1.3rem; font-weight: bold; border-radius: 12px; 
+            border: 2px solid #ddd; background: white; cursor: pointer;
+        }
+        .btn-choice:active { background: #eee; }
+        .btn-u { grid-column: span 2; height: 50px; font-size: 1rem; color: #666; border: none; background: #f0f0f0; }
+
+        /* 3. ヒント画面 (画像内容詳細版) */
+        #help-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; color: #333; z-index: 200;
+            display: none; flex-direction: column; padding: 20px; box-sizing: border-box; overflow-y: auto;
+        }
+        .close-help { align-self: flex-end; font-size: 2.5rem; cursor: pointer; color: #999; padding: 0 10px; }
+        .help-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 20px; border: 1px solid #eee; }
+        .help-table th, .help-table td { border: 1px solid #eee; padding: 8px; text-align: left; }
+        .help-table th { background: #f8f9fa; }
+
+        /* 4. 結果画面 - UI固定 */
+        #result-screen { height: 100%; }
+        .result-header-fixed { padding: 15px 20px; flex-shrink: 0; border-bottom: 1px solid #eee; background: white; }
+        .result-scroll-area { flex-grow: 1; overflow-y: auto; padding: 0 10px; }
+        .res-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
+        .res-table thead th { 
+            position: sticky; top: 0; background: #f8f9fa; 
+            padding: 12px 4px; border-bottom: 2px solid #eee; z-index: 10; 
+            text-align: center;
+        }
+        .res-table td { padding: 12px 4px; border-bottom: 1px solid #eee; text-align: center; }
+        .res-row-o { color: var(--masculin-blue); }
+        .res-row-x { color: var(--feminin-red); font-weight: bold; background-color: #fff5f5; }
+        .res-row-u { color: var(--unknown-gray); background-color: #f1f3f5; }
+        .result-footer-fixed { padding: 20px; flex-shrink: 0; border-top: 1px solid #eee; background: white; }
+
+        #feedback {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 10rem; z-index: 150; display: none; pointer-events: none; opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        フランス語 冠詞ドリル
+        <div class="help-btn" onclick="toggleHelp(true)">?</div>
+    </header>
+
+    <div id="help-overlay">
+        <div class="close-help" onclick="toggleHelp(false)">×</div>
+        <h2 style="margin-top:0; border-bottom:2px solid #333; padding-bottom:5px;">冠詞の種類と使い分け</h2>
+
+        <table class="help-table" style="width:100%; border-collapse:collapse; margin-top:10px;">
+            <thead>
+                <tr style="background:#eee;">
+                    <th style="padding:8px; border:1px solid #ddd;">種類</th>
+                    <th style="padding:8px; border:1px solid #ddd;">男性</th>
+                    <th style="padding:8px; border:1px solid #ddd;">女性</th>
+                    <th style="padding:8px; border:1px solid #ddd;">母音前</th>
+                    <th style="padding:8px; border:1px solid #ddd;">複数</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding:8px; border:1px solid #ddd; font-weight:bold;">不定冠詞</td>
+                    <td style="padding:8px; border:1px solid #ddd;">un</td>
+                    <td style="padding:8px; border:1px solid #ddd;">une</td>
+                    <td style="padding:8px; border:1px solid #ddd;">-</td>
+                    <td style="padding:8px; border:1px solid #ddd;">des</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px; border:1px solid #ddd; font-weight:bold;">定冠詞</td>
+                    <td style="padding:8px; border:1px solid #ddd;">le</td>
+                    <td style="padding:8px; border:1px solid #ddd;">la</td>
+                    <td style="padding:8px; border:1px solid #ddd;">l'</td>
+                    <td style="padding:8px; border:1px solid #ddd;">les</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px; border:1px solid #ddd; font-weight:bold;">部分冠詞</td>
+                    <td style="padding:8px; border:1px solid #ddd;">du</td>
+                    <td style="padding:8px; border:1px solid #ddd;">de la</td>
+                    <td style="padding:8px; border:1px solid #ddd;">de l'</td>
+                    <td style="padding:8px; border:1px solid #ddd;">des</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="font-size:0.85rem; line-height:1.6; margin-top:15px; color:#444;">
+            <p><strong>1. 不定冠詞 (un, une, des)</strong><br>
+            数えられる名詞の「不特定の１つ（いくつか）」を表す。<br>
+            <span style="color:#666;">例：J'ai un vélo.（（何でもいいが）自転車を１台持っている）</span></p>
+
+            <p><strong>2. 定冠詞 (le, la, l', les)</strong><br>
+            「すでに話題に出た特定のもの」や、好き嫌いなど「そのカテゴリー全体（総称）」を表す。<br>
+            <span style="color:#666;">例：J'aime le café.（コーヒーという飲み物が好き）</span></p>
+
+            <p><strong>3. 部分冠詞 (du, de la, de l')</strong><br>
+            液体や食べ物、感情など「数えられないもの」の「いくらかの分量」を表す。<br>
+            <span style="color:#666;">例：Je mange du pain.（パンを（いくらか）食べる）</span></p>
+
+            <p style="background:#fff9db; padding:10px; border-radius:5px;">
+                <strong> エリジオンに注意！</strong><br>
+                定冠詞（le, la）と部分冠詞（du, de la）は、後ろの単語が<strong>母音</strong>または<strong>無音の h</strong> で始まる場合、<strong>l'</strong> や <strong>de l'</strong> に形が変わります。<br>
+                <small>（誤）la herbe → （正）<b>l'</b>herbe<br>（誤）du alcool → （正）<b>de l'</b>alcool</small>
+            </p>
+        </div>
+    </div>
+
+    <div id="setup-screen" class="screen active">
+        <h1 style="margin-top: 40px;">冠詞トレーニング</h1>
+        <div class="setup-group">
+            <label style="font-weight: bold; color: #666;">問題数を選択</label>
+            <select id="count-select">
+                <option value="10">10問</option>
+                <option value="20">20問</option>
+                <option value="30">30問</option>
+                <option value="all">全問</option>
+            </select>
+        </div>
+        <button class="start-btn" onclick="initQuiz()">学習開始</button>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div id="progress" class="top-info"></div>
+        <div class="question-box">
+            <div class="card-container" onclick="flipCard()">
+                <div id="card" class="card">
+                    <div class="card-face card-front" id="display-q">---</div>
+                    <div class="card-face card-back" id="display-hint">---</div>
+                </div>
+            </div>
+            
+            <div class="choice-grid" id="choice-area"></div>
+            <button class="btn-choice btn-u" onclick="handleAnswer('u')">わからない</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div class="result-header-fixed"><h2>結果発表</h2></div>
+        <div class="result-scroll-area">
+            <table class="res-table">
+                <thead>
+                    <tr>
+                        <th style="width:12%">結</th>
+                        <th style="width:48%">問題文</th>
+                        <th style="width:18%">答</th>
+                        <th style="width:18%">正</th>
+                    </tr>
+                </thead>
+                <tbody id="result-body"></tbody>
+            </table>
+        </div>
+        <div class="result-footer-fixed">
+            <button class="start-btn" onclick="location.reload()">トップに戻る</button>
+        </div>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<script>
+    // 名詞ごとに成立する動詞を使った3つの例文を保存
+        const database = [
+        { fr: "étudiant", jp: "学生(男)", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je suis <span class='blank-line'></span> étudiant.", a: "un", tr: "私は一人の学生です。" },
+            { q: "Le professeur parle à <span class='blank-line'></span> étudiant.", a: "l'", tr: "教授はその学生に話します。" },
+            { q: "Il y a <span class='blank-line'></span> étudiants ici.", a: "des", tr: "ここに何人かの学生たちがいます。" }
+        ]},
+        { fr: "étudiante", jp: "学生(女)", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "C'est <span class='blank-line'></span> étudiante.", a: "une", tr: "それは一人の学生です。" },
+            { q: "J'écoute <span class='blank-line'></span> étudiante.", a: "l'", tr: "私はその学生の話を聞きます。" },
+            { q: "Voici <span class='blank-line'></span> étudiantes françaises.", a: "des", tr: "ここにフランス人の学生たちがいます。" }
+        ]},
+        { fr: "professeur", jp: "教師、教授(男)", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "C'est <span class='blank-line'></span> professeur.", a: "un", tr: "それは一人の教授です。" },
+            { q: "Je cherche <span class='blank-line'></span> professeur.", a: "le", tr: "私はその教授を探しています。" },
+            { q: "J'aime <span class='blank-line'></span> professeurs.", a: "les", tr: "私は先生たちが好きです。" }
+        ]},
+        { fr: "professeure", jp: "教師、教授(女)", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> professeure.", a: "la", tr: "私はその先生を見ています。" },
+            { q: "Elle est <span class='blank-line'></span> professeure.", a: "une", tr: "彼女は一人の教師です。" },
+            { q: "Nous aimons <span class='blank-line'></span> professeures.", a: "les", tr: "私たちは先生たちが好きです。" }
+        ]},
+        { fr: "journaliste", jp: "ジャーナリスト", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Il est <span class='blank-line'></span> journaliste.", a: "un", tr: "彼は一人のジャーナリストです。" },
+            { q: "J'aime <span class='blank-line'></span> journaliste.", a: "le", tr: "私はそのジャーナリストが好きです。" },
+            { q: "Ce sont <span class='blank-line'></span> journalistes.", a: "des", tr: "彼らはジャーナリストたちです。" }
+        ]},
+        { fr: "élève", jp: "生徒", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "J'aide <span class='blank-line'></span> élève.", a: "l'", tr: "私はその生徒を助けます。" },
+            { q: "C'est <span class='blank-line'></span> bon élève.", a: "un", tr: "それは一人の良い生徒です。" },
+            { q: "Il y a <span class='blank-line'></span> élèves dans la classe.", a: "des", tr: "クラスに生徒たちがいます。" }
+        ]},
+        { fr: "acteur", jp: "俳優(男)", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> acteur.", a: "l'", tr: "私はその俳優を探しています。" },
+            { q: "C'est <span class='blank-line'></span> acteur célèbre.", a: "un", tr: "それは一人の有名な俳優です。" },
+            { q: "J'aime <span class='blank-line'></span> acteurs.", a: "les", tr: "私は俳優たちが好きです。" }
+        ]},
+        { fr: "actrice", jp: "俳優(女)", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "C'est <span class='blank-line'></span> actrice.", a: "une", tr: "それは一人の女優です。" },
+            { q: "Nous regardons <span class='blank-line'></span> actrice.", a: "l'", tr: "私たちはその女優を見ています。" },
+            { q: "Voici <span class='blank-line'></span> actrices.", a: "des", tr: "ここに何人かの女優たちがいます。" }
+        ]},
+        { fr: "étranger", jp: "外国人(男)", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je parle à <span class='blank-line'></span> étranger.", a: "l'", tr: "私はその外国人に話しかけます。" },
+            { q: "C'est <span class='blank-line'></span> étranger.", a: "un", tr: "それは一人の外国人です。" },
+            { q: "J'aime <span class='blank-line'></span> étrangers.", a: "les", tr: "私は外国人が好きです。" }
+        ]},
+        { fr: "étrangère", jp: "外国人(女)", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "Elle est <span class='blank-line'></span> étrangère.", a: "une", tr: "彼女は一人の外国人です。" },
+            { q: "Je regarde <span class='blank-line'></span> étrangère.", a: "l'", tr: "私はその外国人を見ています。" },
+            { q: "Ce sont <span class='blank-line'></span> étrangères.", a: "des", tr: "彼女たちは外国人たちです。" }
+        ]},
+        { fr: "homme", jp: "男、人間", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je vois <span class='blank-line'></span> homme.", a: "l'", tr: "私はその男の人を見ます。" },
+            { q: "C'est <span class='blank-line'></span> homme.", a: "un", tr: "それは一人の男の人です。" },
+            { q: "Il y a <span class='blank-line'></span> hommes ici.", a: "des", tr: "ここに何人かの男の人たちがいます。" }
+        ]},
+        { fr: "femme", jp: "女、妻", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "C'est <span class='blank-line'></span> femme.", a: "une", tr: "それは一人の女性です。" },
+            { q: "J'aime <span class='blank-line'></span> femme.", a: "la", tr: "私はその女性が好きです。" },
+            { q: "Nous cherchons <span class='blank-line'></span> femmes.", a: "des", tr: "私たちは何人かの女性を探しています。" }
+        ]},
+        { fr: "monsieur", jp: "男の人", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> monsieur.", a: "le", tr: "私はその男の人を探しています。" },
+            { q: "C'est <span class='blank-line'></span> monsieur.", a: "un", tr: "それは一人の男の人です。" },
+            { q: "J'aime <span class='blank-line'></span> messieurs.", a: "les", tr: "私は男の人たちが好きです。" }
+        ]},
+        { fr: "madame", jp: "夫人", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je parle à <span class='blank-line'></span> madame.", a: "la", tr: "私はその夫人に話します。" },
+            { q: "C'est <span class='blank-line'></span> madame.", a: "une", tr: "それは一人の夫人です。" },
+            { q: "Ce sont <span class='blank-line'></span> mesdames.", a: "des", tr: "彼女たちは夫人たちです。" }
+        ]},
+        { fr: "enfant", jp: "子供", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> enfant.", a: "un", tr: "私には子供が一人います。" },
+            { q: "J'aime <span class='blank-line'></span> enfant.", a: "l'", tr: "私はその子供が好きです。" },
+            { q: "Les parents aiment <span class='blank-line'></span> enfants.", a: "les", tr: "親は子供たちが好きです。" }
+        ]},
+        { fr: "parent", jp: "親、両親", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je vois <span class='blank-line'></span> parent.", a: "le", tr: "私はその親に会います。" },
+            { q: "C'est <span class='blank-line'></span> bon parent.", a: "un", tr: "それは一人の良い親です。" },
+            { q: "J'aime <span class='blank-line'></span> parents.", a: "les", tr: "私は両親が好きです。" }
+        ]},
+        { fr: "père", jp: "父", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> père de Jean.", a: "le", tr: "私はジャンの父を探しています。" },
+            { q: "Il est <span class='blank-line'></span> bon père.", a: "un", tr: "彼は一人の良い父親です。" },
+            { q: "Voilà <span class='blank-line'></span> pères.", a: "des", tr: "そこに何人かの父親たちがいます。" }
+        ]},
+        { fr: "mère", jp: "母", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "J'aime <span class='blank-line'></span> mère.", a: "la", tr: "私は母が好きです。" },
+            { q: "C'est <span class='blank-line'></span> mère.", a: "une", tr: "それは一人の母親です。" },
+            { q: "Ce sont <span class='blank-line'></span> mères.", a: "des", tr: "彼女たちは母親たちです。" }
+        ]},
+        { fr: "frère", jp: "兄弟", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> frère.", a: "un", tr: "私には兄弟が一人います。" },
+            { q: "Je cherche <span class='blank-line'></span> frère.", a: "le", tr: "私はその兄弟を探しています。" },
+            { q: "Il a <span class='blank-line'></span> frères.", a: "des", tr: "彼には何人かの兄弟がいます。" }
+        ]},
+        { fr: "soeur", jp: "姉妹", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> soeur.", a: "une", tr: "私には姉妹が一人います。" },
+            { q: "J'aime <span class='blank-line'></span> soeur.", a: "la", tr: "私はその姉妹が好きです。" },
+            { q: "Elles sont <span class='blank-line'></span> soeurs.", a: "des", tr: "彼女たちは姉妹です。" }
+        ]},
+        { fr: "oncle", jp: "伯父", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> oncle.", a: "l'", tr: "私はその伯父を探しています。" },
+            { q: "C'est <span class='blank-line'></span> oncle.", a: "un", tr: "それは一人のおじさんです。" },
+            { q: "J'aime <span class='blank-line'></span> oncles.", a: "les", tr: "私はおじさんたちが好きです。" }
+        ]},
+        { fr: "tante", jp: "伯母", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je parle à <span class='blank-line'></span> tante.", a: "la", tr: "私はその伯母に話します。" },
+            { q: "C'est <span class='blank-line'></span> tante.", a: "une", tr: "それは一人の伯母です。" },
+            { q: "Voilà <span class='blank-line'></span> tantes.", a: "des", tr: "そこに何人かの伯母たちがいます。" }
+        ]},
+        { fr: "ami", jp: "友人(男)", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> ami.", a: "un", tr: "私には一人の友人がいます。" },
+            { q: "Je regarde <span class='blank-line'></span> ami de Pierre.", a: "l'", tr: "私はピエールのその友人を見ています。" },
+            { q: "Nous avons <span class='blank-line'></span> amis.", a: "des", tr: "私たちには何人かの友人がいます。" }
+        ]},
+        { fr: "amie", jp: "友人(女)", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "C'est <span class='blank-line'></span> amie.", a: "une", tr: "それは一人の友人です。" },
+            { q: "J'adore <span class='blank-line'></span> amie.", a: "l'", tr: "私はその友人が大好きです。" },
+            { q: "Ce sont <span class='blank-line'></span> amies.", a: "des", tr: "彼女たちは友人たちです。" }
+        ]},
+        { fr: "président", jp: "大統領", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je vois <span class='blank-line'></span> président.", a: "le", tr: "私はその大統領を見ます。" },
+            { q: "C'est <span class='blank-line'></span> président.", a: "un", tr: "それは一人の大統領です。" },
+            { q: "J'aime <span class='blank-line'></span> présidents.", a: "les", tr: "私は大統領たちが好きです。" }
+        ]},
+        { fr: "pain", jp: "パン", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "Je mange <span class='blank-line'></span> pain.", a: "du", tr: "私はパンを食べます。" },
+            { q: "J'aime <span class='blank-line'></span> pain.", a: "le", tr: "私はそのパンが好きです。" },
+            { q: "Il achète <span class='blank-line'></span> pain.", a: "du", tr: "彼はパンを買います。" }
+        ]},
+        { fr: "riz", jp: "米", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "Je mange <span class='blank-line'></span> riz.", a: "du", tr: "私は米を食べます。" },
+            { q: "Elle adore <span class='blank-line'></span> riz.", a: "le", tr: "彼女はその米が大好きです。" },
+            { q: "Nous avons <span class='blank-line'></span> riz.", a: "du", tr: "私たちは米を持っています。" }
+        ]},
+        { fr: "viande", jp: "肉", gender: "f", vowel: false, uncount: true, sentences: [
+            { q: "Je mange <span class='blank-line'></span> viande.", a: "de la", tr: "私は肉を食べます。" },
+            { q: "Il cherche <span class='blank-line'></span> viande.", a: "la", tr: "彼はその肉を探しています。" },
+            { q: "Nous achetons <span class='blank-line'></span> viande.", a: "de la", tr: "私たちは肉を買います。" }
+	]},
+	{ fr: "oeuf", jp: "卵", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je mange <span class='blank-line'></span> oeuf.", a: "un", tr: "私は一つの卵を食べます。" },
+            { q: "Il achète <span class='blank-line'></span> oeufs.", a: "des", tr: "彼はいくつかの卵を買います。" },
+            { q: "Je regarde <span class='blank-line'></span> oeuf.", a: "l'", tr: "私はその卵を見ています。" }
+        ]},
+        { fr: "fromage", jp: "チーズ", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "Je mange <span class='blank-line'></span> fromage.", a: "du", tr: "私はチーズを食べます。" },
+            { q: "Elle aime <span class='blank-line'></span> fromage.", a: "le", tr: "彼女はそのチーズが好きです。" },
+            { q: "Nous achetons <span class='blank-line'></span> fromage.", a: "du", tr: "私たちはチーズを買います。" }
+        ]},
+        { fr: "beurre", jp: "バター", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> beurre.", a: "le", tr: "私はそのバターを探しています。" },
+            { q: "Tu manges <span class='blank-line'></span> beurre.", a: "du", tr: "あなたはバターを食べます。" },
+            { q: "Il y a <span class='blank-line'></span> beurre sur la table.", a: "du", tr: "テーブルの上にバターがあります。" }
+        ]},
+        { fr: "confiture", jp: "ジャム", gender: "f", vowel: false, uncount: true, sentences: [
+            { q: "Je mange <span class='blank-line'></span> confiture.", a: "de la", tr: "私はジャムを食べます。" },
+            { q: "J'aime <span class='blank-line'></span> confiture de fraises.", a: "la", tr: "私はそのイチゴジャムが好きです。" },
+            { q: "Nous achetons <span class='blank-line'></span> confiture.", a: "de la", tr: "私たちはジャムを買います。" }
+        ]},
+        { fr: "pomme", jp: "リンゴ", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je mange <span class='blank-line'></span> pomme.", a: "une", tr: "私は一個のリンゴを食べます。" },
+            { q: "Elle achète <span class='blank-line'></span> pommes.", a: "des", tr: "彼女は何個かのリンゴを買います。" },
+            { q: "J'aime <span class='blank-line'></span> pommes.", a: "les", tr: "私はリンゴが好きです。" }
+        ]},
+        { fr: "banane", jp: "バナナ", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "C'est <span class='blank-line'></span> banane.", a: "une", tr: "それは一本のバナナです。" },
+            { q: "Je mange <span class='blank-line'></span> bananes.", a: "des", tr: "私は何本かのバナナを食べます。" },
+            { q: "Nous regardons <span class='blank-line'></span> bananes.", a: "les", tr: "私たちはそれらのバナナを見ています。" }
+        ]},
+        { fr: "fraise", jp: "イチゴ", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> fraises.", a: "des", tr: "私は何個かのイチゴを探しています。" },
+            { q: "Il mange <span class='blank-line'></span> fraise.", a: "une", tr: "彼は一個のイチゴを食べます。" },
+            { q: "J'aime <span class='blank-line'></span> fraise.", a: "la", tr: "私はそのイチゴが好きです。" }
+        ]},
+        { fr: "pêche", jp: "モモ", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je mange <span class='blank-line'></span> pêche.", a: "une", tr: "私は一個のモモを食べます。" },
+            { q: "Nous achetons <span class='blank-line'></span> pêches.", a: "des", tr: "私たちは何個かのモモを買います。" },
+            { q: "Elle regarde <span class='blank-line'></span> pêche.", a: "la", tr: "彼女はそのモモを見ています。" }
+        ]},
+        { fr: "bonbon", jp: "キャンディー", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je mange <span class='blank-line'></span> bonbon.", a: "un", tr: "私は一個のキャンディーを食べます。" },
+            { q: "Il a <span class='blank-line'></span> bonbons.", a: "des", tr: "彼はいくつかのキャンディーを持っています。" },
+            { q: "Nous aimons <span class='blank-line'></span> bonbons.", a: "les", tr: "私たちはキャンディーが好きです。" }
+        ]},
+        { fr: "café", jp: "コーヒー", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "Je bois <span class='blank-line'></span> café.", a: "du", tr: "私はコーヒーを飲みます。" },
+            { q: "J'adore <span class='blank-line'></span> café.", a: "le", tr: "私はそのコーヒーが大好きです。" },
+            { q: "Il prend <span class='blank-line'></span> café.", a: "un", tr: "彼は一杯のコーヒーを飲みます。" }
+        ]},
+        { fr: "vin", jp: "ワイン", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "Je bois <span class='blank-line'></span> vin.", a: "du", tr: "私はワインを飲みます。" },
+            { q: "Il cherche <span class='blank-line'></span> vin rouge.", a: "le", tr: "彼はその赤ワインを探しています。" },
+            { q: "Nous achetons <span class='blank-line'></span> vin.", a: "du", tr: "私たちはワインを買います。" }
+        ]},
+        { fr: "alcool", jp: "アルコール", gender: "m", vowel: true, uncount: true, sentences: [
+            { q: "Il ne boit pas <span class='blank-line'></span> alcool.", a: "d'", tr: "彼はアルコールを飲みません。" },
+            { q: "Je prends <span class='blank-line'></span> alcool.", a: "de l'", tr: "私はアルコールを摂取します。" },
+            { q: "Elle déteste <span class='blank-line'></span> alcool.", a: "l'", tr: "彼女はそのアルコールを嫌っています。" }
+        ]},
+        { fr: "huile", jp: "油", gender: "f", vowel: true, uncount: true, sentences: [
+            { q: "J'achète <span class='blank-line'></span> huile.", a: "de l'", tr: "私は油を買います。" },
+            { q: "Nous utilisons <span class='blank-line'></span> huile.", a: "l'", tr: "私たちはその油を使います。" },
+            { q: "Je cherche <span class='blank-line'></span> huile d'olive.", a: "l'", tr: "私はそのオリーブオイルを探しています。" }
+        ]},
+        { fr: "livre", jp: "本", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je lis <span class='blank-line'></span> livre.", a: "un", tr: "私は一冊の本を読みます。" },
+            { q: "Il cherche <span class='blank-line'></span> livre de Marie.", a: "le", tr: "彼はマリーのその本を探しています。" },
+            { q: "Nous avons <span class='blank-line'></span> livres.", a: "des", tr: "私たちはいくつかの本を持っています。" }
+        ]},
+        { fr: "dictionnaire", jp: "辞書", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> dictionnaire.", a: "un", tr: "私は一冊の辞書を持っています。" },
+            { q: "Il regarde <span class='blank-line'></span> dictionnaire.", a: "le", tr: "彼はその辞書を見ています。" },
+            { q: "Nous cherchons <span class='blank-line'></span> dictionnaires.", a: "des", tr: "私たちは何冊かの辞書を探しています。" }
+        ]},
+        { fr: "cahier", jp: "ノート", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'écris dans <span class='blank-line'></span> cahier.", a: "un", tr: "私は一冊のノートに書きます。" },
+            { q: "Elle cherche <span class='blank-line'></span> cahier bleu.", a: "le", tr: "彼女はその青いノートを探しています。" },
+            { q: "Il a <span class='blank-line'></span> cahiers.", a: "des", tr: "彼はいくつかのノートを持っています。" }
+        ]},
+        { fr: "stylo", jp: "ペン", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'achète <span class='blank-line'></span> stylo.", a: "un", tr: "私は一本のペンを買います。" },
+            { q: "C'est <span class='blank-line'></span> stylo de Paul.", a: "le", tr: "それはポールのペンです。" },
+            { q: "Nous cherchons <span class='blank-line'></span> stylos.", a: "des", tr: "私たちは何本かのペンを探しています。" }
+        ]},
+        { fr: "crayon", jp: "鉛筆", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> crayon.", a: "un", tr: "私は一本の鉛筆を持っています。" },
+            { q: "Je regarde <span class='blank-line'></span> crayon.", a: "le", tr: "私はその鉛筆を見ています。" },
+            { q: "Elle a <span class='blank-line'></span> crayons.", a: "des", tr: "彼女はいくつかの鉛筆を持っています。" }
+        ]},
+        { fr: "gomme", jp: "消しゴム", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> gomme.", a: "une", tr: "私は一個の消しゴムを探しています。" },
+            { q: "C'est <span class='blank-line'></span> gomme de Marie.", a: "la", tr: "それはマリーの消しゴムです。" },
+            { q: "Nous avons <span class='blank-line'></span> gommes.", a: "des", tr: "私たちはいくつかの消しゴムを持っています。" }
+        ]},
+        { fr: "feuille", jp: "葉、紙", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je prends <span class='blank-line'></span> feuille.", a: "une", tr: "私は一枚の紙を取ります。" },
+            { q: "Il regarde <span class='blank-line'></span> feuille.", a: "la", tr: "彼はその葉を見ています。" },
+            { q: "Nous cherchons <span class='blank-line'></span> feuilles.", a: "des", tr: "私たちは何枚かの紙を探しています。" }
+        ]},
+        { fr: "carte", jp: "カード", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> carte.", a: "une", tr: "私は一枚のカードを持っています。" },
+            { q: "Il regarde <span class='blank-line'></span> carte du monde.", a: "la", tr: "彼はその世界地図を見ています。" },
+            { q: "Nous avons <span class='blank-line'></span> cartes.", a: "des", tr: "私たちはいくつかのカードを持っています。" }
+        ]},
+        { fr: "chèque", jp: "小切手", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'écris <span class='blank-line'></span> chèque.", a: "un", tr: "私は一枚の小切手を書きます。" },
+            { q: "Il cherche <span class='blank-line'></span> chèque.", a: "le", tr: "彼はその小切手を探しています。" },
+            { q: "Nous avons <span class='blank-line'></span> chèques.", a: "des", tr: "私たちはいくつかの小切手を持っています。" }
+        ]},
+        { fr: "sac", jp: "バッグ", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'achète <span class='blank-line'></span> sac.", a: "un", tr: "私は一つのバッグを買います。" },
+            { q: "Elle cherche <span class='blank-line'></span> sac noir.", a: "le", tr: "彼女はその黒いバッグを探しています。" },
+            { q: "Nous avons <span class='blank-line'></span> sacs.", a: "des", tr: "私たちはいくつかのバッグを持っています。" }
+        ]},
+        { fr: "panier", jp: "かご", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je porte <span class='blank-line'></span> panier.", a: "un", tr: "私は一つのかごを持ちます。" },
+            { q: "Il regarde <span class='blank-line'></span> panier.", a: "le", tr: "彼はそのかごを見ています。" },
+            { q: "Il y a <span class='blank-line'></span> paniers ici.", a: "des", tr: "ここにいくつかのかごがあります。" }
+        ]},
+        { fr: "paquet", jp: "小包", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je reçois <span class='blank-line'></span> paquet.", a: "un", tr: "私は一つの小包を受け取ります。" },
+            { q: "Il cherche <span class='blank-line'></span> paquet.", a: "le", tr: "彼はその小包を探しています。" },
+            { q: "Nous avons <span class='blank-line'></span> paquets.", a: "des", tr: "私たちはいくつかの小包を持っています。" }
+        ]},
+        { fr: "bijou", jp: "アクセサリー", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'achète <span class='blank-line'></span> bijou.", a: "un", tr: "私は一つのアクセサリーを買います。" },
+            { q: "Elle regarde <span class='blank-line'></span> bijou.", a: "le", tr: "彼女はそのアクセサリーを見ています。" },
+            { q: "Ce sont <span class='blank-line'></span> bijoux.", a: "des", tr: "これらはいくつかのアクセサリーです。" }
+        ]},
+        { fr: "bouteille", jp: "瓶", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> bouteille.", a: "une", tr: "私は一本の瓶を持っています。" },
+            { q: "Il cherche <span class='blank-line'></span> bouteille de vin.", a: "la", tr: "彼はそのワインの瓶を探しています。" },
+            { q: "Nous avons <span class='blank-line'></span> bouteilles.", a: "des", tr: "私たちはいくつかの瓶を持っています。" }
+        ]},
+	{ fr: "clef", jp: "鍵", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> clef.", a: "une", tr: "私は一つの鍵を探しています。" },
+            { q: "Il a <span class='blank-line'></span> clef de la maison.", a: "la", tr: "彼はその家の鍵を持っています。" },
+            { q: "Nous avons <span class='blank-line'></span> clefs.", a: "des", tr: "私たちはいくつかの鍵を持っています。" }
+        ]},
+        { fr: "photo", jp: "写真", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je prends <span class='blank-line'></span> photo.", a: "une", tr: "私は一枚の写真を撮ります。" },
+            { q: "Elle regarde <span class='blank-line'></span> photo.", a: "la", tr: "彼女はその写真を見ています。" },
+            { q: "Ce sont <span class='blank-line'></span> photos de voyage.", a: "des", tr: "これらは旅行の写真です。" }
+        ]},
+        { fr: "revue", jp: "雑誌", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je lis <span class='blank-line'></span> revue.", a: "une", tr: "私は一冊の雑誌を読みます。" },
+            { q: "Il achète <span class='blank-line'></span> revue française.", a: "la", tr: "彼はそのフランスの雑誌を買います。" },
+            { q: "Elle a <span class='blank-line'></span> revues sur la table.", a: "des", tr: "彼女はテーブルの上にいくつかの雑誌を持っています。" }
+        ]},
+        { fr: "journal", jp: "新聞", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'achète <span class='blank-line'></span> journal.", a: "un", tr: "私は一紙の新聞を買います。" },
+            { q: "Je lis <span class='blank-line'></span> journal du matin.", a: "le", tr: "私はその朝刊を読みます。" },
+            { q: "Il y a <span class='blank-line'></span> journaux ici.", a: "des", tr: "ここにいくつかの新聞があります。" }
+        ]},
+        { fr: "tableau", jp: "絵、黒板", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> tableau.", a: "le", tr: "私はその絵を見ています。" },
+            { q: "Il achète <span class='blank-line'></span> tableau.", a: "un", tr: "彼は一枚の絵を買います。" },
+            { q: "Nous aimons <span class='blank-line'></span> tableaux de Picasso.", a: "les", tr: "私たちはピカソの絵が好きです。" }
+        ]},
+        { fr: "veston", jp: "上着", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je porte <span class='blank-line'></span> veston.", a: "un", tr: "私は一着の上着を着ています。" },
+            { q: "Il cherche <span class='blank-line'></span> veston gris.", a: "le", tr: "彼はそのグレーの上着を探しています。" },
+            { q: "Nous achetons <span class='blank-line'></span> vestons.", a: "des", tr: "私たちはいくつかの上着を買います。" }
+        ]},
+        { fr: "chemise", jp: "シャツ", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Elle porte <span class='blank-line'></span> chemise blanche.", a: "une", tr: "彼女は一枚の白いシャツを着ています。" },
+            { q: "Je lave <span class='blank-line'></span> chemise.", a: "la", tr: "私はそのシャツを洗います。" },
+            { q: "Il a <span class='blank-line'></span> chemises propres.", a: "des", tr: "彼はいくつかの清潔なシャツを持っています。" }
+        ]},
+        { fr: "cravate", jp: "ネクタイ", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Il choisit <span class='blank-line'></span> cravate.", a: "une", tr: "彼は一本のネクタイを選びます。" },
+            { q: "Je porte <span class='blank-line'></span> cravate rouge.", a: "la", tr: "私はその赤いネクタイを締めています。" },
+            { q: "Nous achetons <span class='blank-line'></span> cravates.", a: "des", tr: "私たちはいくつかのネクタイを買います。" }
+        ]},
+        { fr: "robe", jp: "ドレス", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Elle achète <span class='blank-line'></span> robe.", a: "une", tr: "彼女は一着のドレスを買います。" },
+            { q: "Je regarde <span class='blank-line'></span> robe bleue.", a: "la", tr: "私はその青いドレスを見ています。" },
+            { q: "Elles portent <span class='blank-line'></span> robes élégantes.", a: "des", tr: "彼女たちは優雅なドレスを着ています。" }
+        ]},
+        { fr: "gant", jp: "手袋", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> gant.", a: "un", tr: "私は片方の手袋を探しています。" },
+            { q: "Il porte <span class='blank-line'></span> gants noirs.", a: "les", tr: "彼はその黒い手袋をはめています。" },
+            { q: "Elle a <span class='blank-line'></span> gants chauds.", a: "des", tr: "彼女はいくつか温かい手袋を持っています。" }
+        ]},
+        { fr: "chaussure", jp: "靴", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> chaussure.", a: "une", tr: "私は片方の靴を探しています。" },
+            { q: "Elle achète <span class='blank-line'></span> chaussures.", a: "des", tr: "彼女はいくつかの靴を買います。" },
+            { q: "Il regarde <span class='blank-line'></span> chaussures de sport.", a: "les", tr: "彼はそのスポーツシューズを見ています。" }
+        ]},
+        { fr: "maison", jp: "家", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "J'habite <span class='blank-line'></span> grande maison.", a: "une", tr: "私は一つの大きな家に住んでいます。" },
+            { q: "Nous cherchons <span class='blank-line'></span> maison de Marie.", a: "la", tr: "私たちはマリーの家を探しています。" },
+            { q: "Il y a <span class='blank-line'></span> maisons dans la rue.", a: "des", tr: "通りにいくつかの家があります。" }
+        ]},
+        { fr: "appartement", jp: "アパルトマン", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> appartement.", a: "un", tr: "私は一つのアパルトマンを探しています。" },
+            { q: "Nous aimons <span class='blank-line'></span> appartement de Paul.", a: "l'", tr: "私たちはポールのそのアパルトマンが好きです。" },
+            { q: "Il y a <span class='blank-line'></span> appartements vides.", a: "des", tr: "いくつかのアパルトマンが空いています。" }
+        ]},
+        { fr: "chambre", jp: "部屋", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je prépare <span class='blank-line'></span> chambre.", a: "une", tr: "私は一つの部屋を準備します。" },
+            { q: "Elle regarde <span class='blank-line'></span> chambre d'amis.", a: "la", tr: "彼女はその客間を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> chambres dans l'hôtel.", a: "des", tr: "ホテルにはいくつかの部屋があります。" }
+        ]},
+        { fr: "bureau", jp: "机、事務所", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je travaille dans <span class='blank-line'></span> bureau.", a: "un", tr: "私は一つの事務所で働いています。" },
+            { q: "Il cherche <span class='blank-line'></span> bureau de son père.", a: "le", tr: "彼は父親のその机を探しています。" },
+            { q: "Nous achetons <span class='blank-line'></span> bureaux.", a: "des", tr: "私たちはいくつかの机を買います。" }
+        ]},
+        { fr: "hôtel", jp: "ホテル", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> hôtel.", a: "un", tr: "私は一つのホテルを探しています。" },
+            { q: "Nous aimons <span class='blank-line'></span> hôtel de la plage.", a: "l'", tr: "私たちはその海岸のホテルが好きです。" },
+            { q: "Il y a <span class='blank-line'></span> hôtels dans la ville.", a: "des", tr: "街にはいくつかのホテルがあります。" }
+        ]},
+        { fr: "école", jp: "学校", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "Je vais à <span class='blank-line'></span> école.", a: "l'", tr: "私はその学校に行きます。" },
+            { q: "C'est <span class='blank-line'></span> école française.", a: "une", tr: "それは一つのフランスの学校です。" },
+            { q: "Il y a <span class='blank-line'></span> écoles dans le quartier.", a: "des", tr: "地区にはいくつかの学校があります。" }
+        ]},
+        { fr: "église", jp: "教会", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> église.", a: "l'", tr: "私はその教会を見ています。" },
+            { q: "C'est <span class='blank-line'></span> vieille église.", a: "une", tr: "それは一つの古い教会です。" },
+            { q: "Nous voyons <span class='blank-line'></span> églises.", a: "des", tr: "私たちはいくつかの教会が見えます。" }
+        ]},
+        { fr: "magasin", jp: "店", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> magasin.", a: "un", tr: "私は一つの店を探しています。" },
+            { q: "Nous entrons dans <span class='blank-line'></span> magasin de mode.", a: "le", tr: "私たちはそのブティックに入ります。" },
+            { q: "Il y a <span class='blank-line'></span> magasins ouverts.", a: "des", tr: "いくつかの店が開いています。" }
+        ]},
+        { fr: "supermarché", jp: "スーパー", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je vais à <span class='blank-line'></span> supermarché.", a: "un", tr: "私は一つのスーパーに行きます。" },
+            { q: "Il cherche <span class='blank-line'></span> supermarché.", a: "le", tr: "彼はそのスーパーを探しています。" },
+            { q: "Nous voyons <span class='blank-line'></span> supermarchés.", a: "des", tr: "私たちはいくつかのスーパーが見えます。" }
+        ]},
+        { fr: "restaurant", jp: "レストラン", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je réserve <span class='blank-line'></span> restaurant.", a: "un", tr: "私は一つのレストランを予約します。" },
+            { q: "Nous aimons <span class='blank-line'></span> restaurant italien.", a: "le", tr: "私たちはそのイタリアンレストランが好きです。" },
+            { q: "Il y a <span class='blank-line'></span> restaurants dans la rue.", a: "des", tr: "通りにいくつかのレストランがあります。" }
+        ]},
+        { fr: "usine", jp: "工場", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "Il travaille dans <span class='blank-line'></span> usine.", a: "une", tr: "彼は一つの工場で働いています。" },
+            { q: "Je vois <span class='blank-line'></span> usine de voitures.", a: "l'", tr: "私はその自動車工場を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> usines dans la région.", a: "des", tr: "地域にはいくつかの工場があります。" }
+        ]},
+        { fr: "château", jp: "城", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je visite <span class='blank-line'></span> château.", a: "un", tr: "私は一つのお城を訪問します。" },
+            { q: "Nous regardons <span class='blank-line'></span> château de Versailles.", a: "le", tr: "私たちはそのヴェルサイユ宮殿を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> châteaux en France.", a: "des", tr: "フランスにはいくつかのお城があります。" }
+        ]},
+        { fr: "ville", jp: "都市", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "J'aime <span class='blank-line'></span> ville de Paris.", a: "la", tr: "私はパリという街が好きです。" },
+            { q: "C'est <span class='blank-line'></span> belle ville.", a: "une", tr: "それは一つの美しい街です。" },
+            { q: "Il visite <span class='blank-line'></span> villes étrangères.", a: "des", tr: "彼はいくつかの外国の都市を訪問します。" }
+        ]},
+        { fr: "jardin", jp: "庭", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> jardin.", a: "le", tr: "私はその庭を見ています。" },
+            { q: "Il a <span class='blank-line'></span> petit jardin.", a: "un", tr: "彼は一つの小さな庭を持っています。" },
+            { q: "Nous aimons <span class='blank-line'></span> jardins publics.", a: "les", tr: "私たちはその公立公園が好きです。" }
+        ]},
+        { fr: "centre", jp: "中心", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> centre de la ville.", a: "le", tr: "私は街の中心を探しています。" },
+            { q: "C'est <span class='blank-line'></span> centre commercial.", a: "un", tr: "それは一つのショッピングセンターです。" },
+            { q: "Nous visitons <span class='blank-line'></span> centres culturels.", a: "des", tr: "私たちはいくつかの文化センターを訪問します。" }
+        ]},
+        { fr: "toit", jp: "屋根", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> toit de la maison.", a: "le", tr: "私はその家の屋根を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> toit rouge.", a: "un", tr: "一つの赤い屋根があります。" },
+            { q: "Nous voyons <span class='blank-line'></span> toits de Paris.", a: "les", tr: "私たちはそのパリの屋根を見ています。" }
+        ]},
+	{ fr: "vélo", jp: "自転車", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> vélo.", a: "un", tr: "私は一台の自転車を探しています。" },
+            { q: "Il prend <span class='blank-line'></span> vélo de Paul.", a: "le", tr: "彼はポールの自転車を使います。" },
+            { q: "Nous achetons <span class='blank-line'></span> vélos.", a: "des", tr: "私たちは何台かの自転車を買います。" }
+        ]},
+        { fr: "voiture", jp: "車", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Elle conduit <span class='blank-line'></span> voiture.", a: "une", tr: "彼女は一台の車を運転します。" },
+            { q: "Je regarde <span class='blank-line'></span> voiture rouge.", a: "la", tr: "私はその赤い車を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> voitures dans la rue.", a: "des", tr: "通りに何台かの車があります。" }
+        ]},
+        { fr: "moto", jp: "バイク", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> moto.", a: "une", tr: "私は一台のバイクを持っています。" },
+            { q: "Il aime <span class='blank-line'></span> moto de son frère.", a: "la", tr: "彼は兄弟のそのバイクが好きです。" },
+            { q: "Nous voyons <span class='blank-line'></span> motos.", a: "des", tr: "私たちは何台かのバイクを見かけます。" }
+        ]},
+        { fr: "tuyau", jp: "パイプ", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> tuyau.", a: "un", tr: "私は一本のパイプを探しています。" },
+            { q: "Il regarde <span class='blank-line'></span> tuyau d'arrosage.", a: "le", tr: "彼はそのホースを見ています。" },
+            { q: "Il y a <span class='blank-line'></span> tuyaux dans le garage.", a: "des", tr: "ガレージにいくつかのパイプがあります。" }
+        ]},
+        { fr: "chat", jp: "猫", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "J'ai <span class='blank-line'></span> chat.", a: "un", tr: "私は一匹の猫を飼っています。" },
+            { q: "Je regarde <span class='blank-line'></span> chat noir.", a: "le", tr: "私はその黒猫を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> chats sur le toit.", a: "des", tr: "屋根の上に何匹かの猫がいます。" }
+        ]},
+        { fr: "chien", jp: "犬", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je cherche <span class='blank-line'></span> chien.", a: "un", tr: "私は一匹の犬を探しています。" },
+            { q: "J'aime <span class='blank-line'></span> chien de Marie.", a: "le", tr: "私はマリーの犬が好きです。" },
+            { q: "Nous voyons <span class='blank-line'></span> chiens dans le parc.", a: "des", tr: "私たちは公園で何匹かの犬を見かけます。" }
+        ]},
+        { fr: "oiseau", jp: "鳥", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "J'écoute <span class='blank-line'></span> oiseau.", a: "l'", tr: "私はその鳥の声を聞いています。" },
+            { q: "C'est <span class='blank-line'></span> bel oiseau.", a: "un", tr: "それは一羽の美しい鳥です。" },
+            { q: "Il y a <span class='blank-line'></span> oiseaux dans l'arbre.", a: "des", tr: "木の中に何羽かの鳥がいます。" }
+        ]},
+        { fr: "cheval", jp: "馬", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> cheval.", a: "le", tr: "私はその馬を見ています。" },
+            { q: "C'est <span class='blank-line'></span> cheval blanc.", a: "un", tr: "それは一頭の白馬です。" },
+            { q: "Il y a <span class='blank-line'></span> chevaux dans le champ.", a: "des", tr: "野原に何頭かの馬がいます。" }
+        ]},
+        { fr: "arbre", jp: "木", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je vois <span class='blank-line'></span> arbre.", a: "un", tr: "私は一本の木が見えます。" },
+            { q: "Nous regardons <span class='blank-line'></span> arbre du jardin.", a: "l'", tr: "私たちは庭のその木を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> arbres dans la forêt.", a: "des", tr: "森の中に何本かの木があります。" }
+        ]},
+        { fr: "herbe", jp: "草", gender: "f", vowel: true, uncount: true, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> herbe verte.", a: "l'", tr: "私はその青々とした草を見ています。" },
+            { q: "La vache mange <span class='blank-line'></span> herbe.", a: "de l'", tr: "牛が草を食べています。" },
+            { q: "Il y a <span class='blank-line'></span> herbe dans le jardin.", a: "de l'", tr: "庭に草が生えています。" }
+        ]},
+        { fr: "soleil", jp: "太陽", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> soleil.", a: "le", tr: "私は太陽を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> soleil aujourd'hui.", a: "du", tr: "今日は日差しがあります。" },
+            { q: "Nous aimons <span class='blank-line'></span> soleil.", a: "le", tr: "私たちは太陽の光が好きです。" }
+        ]},
+        { fr: "lumière", jp: "光", gender: "f", vowel: false, uncount: true, sentences: [
+            { q: "J'allume <span class='blank-line'></span> lumière.", a: "la", tr: "私はその明かりをつけます。" },
+            { q: "Il cherche <span class='blank-line'></span> lumière.", a: "la", tr: "彼はその光を探しています。" },
+            { q: "Il y a <span class='blank-line'></span> lumière dans la chambre.", a: "de la", tr: "部屋に明かりがついています。" }
+        ]},
+        { fr: "étoile", jp: "星", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "Je vois <span class='blank-line'></span> étoile.", a: "une", tr: "私は一つの星が見えます。" },
+            { q: "Nous regardons <span class='blank-line'></span> étoile polaire.", a: "l'", tr: "私たちはその北極星を見ています。" },
+            { q: "Il y a <span class='blank-line'></span> étoiles dans le ciel.", a: "des", tr: "空に星が輝いています。" }
+        ]},
+        { fr: "montagne", jp: "山", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> montagne.", a: "la", tr: "私はその山を見ています。" },
+            { q: "C'est <span class='blank-line'></span> haute montagne.", a: "une", tr: "それは一つの高い山です。" },
+            { q: "Il y a <span class='blank-line'></span> montagnes dans cette région.", a: "des", tr: "この地方にはいくつかの山があります。" }
+        ]},
+        { fr: "français", jp: "フランス語", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "J'étudie <span class='blank-line'></span> français.", a: "le", tr: "私はフランス語を勉強しています。" },
+            { q: "Il parle <span class='blank-line'></span> français.", a: "le", tr: "彼はフランス語を話します。" },
+            { q: "C'est <span class='blank-line'></span> français correct.", a: "du", tr: "それは正しいフランス語です。" }
+        ]},
+        { fr: "japonais", jp: "日本語", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "J'apprends <span class='blank-line'></span> japonais.", a: "le", tr: "私は日本語を学んでいます。" },
+            { q: "Nous lisons <span class='blank-line'></span> japonais.", a: "le", tr: "私たちは日本語を読みます。" },
+            { q: "Il écrit <span class='blank-line'></span> japonais.", a: "du", tr: "彼は日本語を書きます。" }
+        ]},
+        { fr: "chinois", jp: "中国語", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "Je comprends <span class='blank-line'></span> chinois.", a: "le", tr: "私は中国語を理解します。" },
+            { q: "Elle étudie <span class='blank-line'></span> chinois.", a: "le", tr: "彼女は中国語を勉強しています。" },
+            { q: "C'est <span class='blank-line'></span> chinois difficile.", a: "du", tr: "それは難しい中国語です。" }
+        ]},
+        { fr: "leçon", jp: "授業、課", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "J'étudie <span class='blank-line'></span> leçon.", a: "la", tr: "私はその課を勉強します。" },
+            { q: "C'est <span class='blank-line'></span> leçon de français.", a: "une", tr: "それは一コマのフランス語の授業です。" },
+            { q: "Nous préparons <span class='blank-line'></span> leçons.", a: "des", tr: "私たちはいくつかの課の予習をします。" }
+        ]},
+        { fr: "sujet", jp: "主題", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je choisis <span class='blank-line'></span> sujet.", a: "un", tr: "私は一つの主題を選びます。" },
+            { q: "Nous étudions <span class='blank-line'></span> sujet de l'examen.", a: "le", tr: "私たちは試験のその範囲を勉強します。" },
+            { q: "Il y a <span class='blank-line'></span> sujets intéressants.", a: "des", tr: "いくつかの興味深いテーマがあります。" }
+        ]},
+        { fr: "travail", jp: "仕事", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "J'ai <span class='blank-line'></span> travail.", a: "du", tr: "私は仕事があります。" },
+            { q: "Il cherche <span class='blank-line'></span> travail.", a: "du", tr: "彼は仕事を探しています。" },
+            { q: "Elle aime <span class='blank-line'></span> travail bien fait.", a: "le", tr: "彼女は丁寧な仕事が好きです。" }
+        ]},
+        { fr: "jour", jp: "日", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je reste ici <span class='blank-line'></span> jour.", a: "un", tr: "私はここに一日滞在します。" },
+            { q: "C'est <span class='blank-line'></span> jour de fête.", a: "le", tr: "それは祝祭の日です。" },
+            { q: "Il y a <span class='blank-line'></span> jours fériés.", a: "des", tr: "いくつかの祝日があります。" }
+        ]},
+        { fr: "automne", jp: "秋", gender: "m", vowel: true, uncount: true, sentences: [
+            { q: "J'aime <span class='blank-line'></span> automne.", a: "l'", tr: "私は秋が好きです。" },
+            { q: "C'est <span class='blank-line'></span> bel automne.", a: "un", tr: "それは一つの美しい秋です。" },
+            { q: "Nous attendons <span class='blank-line'></span> automne.", a: "l'", tr: "私たちはその秋を待っています。" }
+        ]},
+        { fr: "horloge", jp: "時計", gender: "f", vowel: true, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> horloge.", a: "l'", tr: "私はその時計を見ています。" },
+            { q: "Il achète <span class='blank-line'></span> horloge ancienne.", a: "une", tr: "彼は一つの古い掛け時計を買います。" },
+            { q: "Il y a <span class='blank-line'></span> horloges dans le musée.", a: "des", tr: "美術館にはいくつかの時計があります。" }
+        ]},
+        { fr: "cinéma", jp: "映画館", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je vais <span class='blank-line'></span> cinéma.", a: "au", tr: "私はその映画館に行きます。(※leの縮合)" },
+            { q: "Nous cherchons <span class='blank-line'></span> cinéma.", a: "un", tr: "私たちは一つの映画館を探しています。" },
+            { q: "J'aime <span class='blank-line'></span> cinéma français.", a: "le", tr: "私はフランス映画が好きです。" }
+        ]},
+        { fr: "film", jp: "映画", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je regarde <span class='blank-line'></span> film.", a: "un", tr: "私は一本の映画を見ています。" },
+            { q: "C'est <span class='blank-line'></span> film de Jean.", a: "le", tr: "それはジャンの映画です。" },
+            { q: "Nous aimons <span class='blank-line'></span> films d'action.", a: "les", tr: "私たちはアクション映画が好きです。" }
+        ]},
+        { fr: "jeu", jp: "ゲーム", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Il fait <span class='blank-line'></span> jeu.", a: "un", tr: "彼は一つの遊びをします。" },
+            { q: "J'aime <span class='blank-line'></span> jeu vidéo.", a: "le", tr: "私はそのビデオゲームが好きです。" },
+            { q: "Ce sont <span class='blank-line'></span> jeux pour enfants.", a: "des", tr: "これらは子供向けの遊びです。" }
+        ]},
+        { fr: "choix", jp: "選択", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je fais <span class='blank-line'></span> choix.", a: "un", tr: "私は一つの選択をします。" },
+            { q: "C'est <span class='blank-line'></span> bon choix.", a: "le", tr: "それは良い選択です。" },
+            { q: "Nous avons <span class='blank-line'></span> choix difficiles.", a: "des", tr: "私たちにはいくつかの難しい選択肢があります。" }
+        ]},
+        { fr: "ordre", jp: "順序", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je donne <span class='blank-line'></span> ordre.", a: "un", tr: "私は一つの命令を出します。" },
+            { q: "Il suit <span class='blank-line'></span> ordre alphabétique.", a: "l'", tr: "彼はそのアルファベット順に従います。" },
+            { q: "Nous mettons <span class='blank-line'></span> ordres en place.", a: "les", tr: "私たちはその指示を遂行します。" }
+        ]},
+        { fr: "tour", jp: "回転", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je fais <span class='blank-line'></span> tour du parc.", a: "le", tr: "私は公園を一周します。" },
+            { q: "C'est <span class='blank-line'></span> tour de magie.", a: "un", tr: "それは一つの手品です。" },
+            { q: "Il y a <span class='blank-line'></span> tours de piste.", a: "des", tr: "いくつかのトラック周回があります。" }
+        ]},
+        { fr: "soif", jp: "渇き", gender: "f", vowel: false, uncount: true, sentences: [
+            { q: "J'ai <span class='blank-line'></span> soif.", a: "de la", tr: "私は喉が渇いています。" },
+            { q: "Il calme <span class='blank-line'></span> soif.", a: "la", tr: "彼はその渇きを癒やします。" },
+            { q: "C'est <span class='blank-line'></span> soif de savoir.", a: "une", tr: "それは知識への一つの渇望です。" }
+        ]},
+        { fr: "faim", jp: "空腹", gender: "f", vowel: false, uncount: true, sentences: [
+            { q: "Tu as <span class='blank-line'></span> faim.", a: "de la", tr: "あなたは空腹です。" },
+            { q: "Je ressens <span class='blank-line'></span> faim.", a: "la", tr: "私はその空腹を感じます。" },
+            { q: "Elle a <span class='blank-line'></span> faim de loup.", a: "une", tr: "彼女はひどい空腹状態です。" }
+        ]},
+        { fr: "sommeil", jp: "眠り", gender: "m", vowel: false, uncount: true, sentences: [
+            { q: "J'ai <span class='blank-line'></span> sommeil.", a: "du", tr: "私は眠気があります。" },
+            { q: "Il cherche <span class='blank-line'></span> sommeil.", a: "le", tr: "彼は眠り（つくこと）を求めています。" },
+            { q: "C'est <span class='blank-line'></span> profond sommeil.", a: "un", tr: "それは一つの深い眠りです。" }
+        ]},
+        { fr: "raison", jp: "理由", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Je connais <span class='blank-line'></span> raison.", a: "la", tr: "私はその理由を知っています。" },
+            { q: "C'est <span class='blank-line'></span> bonne raison.", a: "une", tr: "それは一つの妥当な理由です。" },
+            { q: "Il y a <span class='blank-line'></span> raisons à cela.", a: "des", tr: "それにはいくつかの理由があります。" }
+        ]},
+        { fr: "tort", jp: "間違い", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je reconnais <span class='blank-line'></span> tort.", a: "le", tr: "私はその非を認めます。" },
+            { q: "C'est <span class='blank-line'></span> tort.", a: "un", tr: "それは一つの間違いです。" },
+            { q: "Il a <span class='blank-line'></span> torts partagés.", a: "des", tr: "彼にはいくつかの落ち度があります。" }
+        ]},
+        { fr: "chance", jp: "運", gender: "f", vowel: false, uncount: true, sentences: [
+            { q: "Vous avez <span class='blank-line'></span> chance.", a: "de la", tr: "あなたは運が良いです。" },
+            { q: "Je tente <span class='blank-line'></span> chance.", a: "la", tr: "私はその運を試します。" },
+            { q: "C'est <span class='blank-line'></span> grande chance.", a: "une", tr: "それは一つの幸運です。" }
+        ]},
+        { fr: "patience", jp: "忍耐", gender: "f", vowel: false, uncount: true, sentences: [
+            { q: "Il faut <span class='blank-line'></span> patience.", a: "de la", tr: "忍耐が必要です。" },
+            { q: "J'admire <span class='blank-line'></span> patience de Marie.", a: "la", tr: "私はマリーのその忍耐強さに感服します。" },
+            { q: "Elle a <span class='blank-line'></span> patience infinie.", a: "une", tr: "彼女は無限の忍耐力を持っています。" }
+        ]},
+        { fr: "fortune", jp: "財産", gender: "f", vowel: false, uncount: false, sentences: [
+            { q: "Il a <span class='blank-line'></span> fortune.", a: "une", tr: "彼は一つの財産を持っています。" },
+            { q: "Je cherche <span class='blank-line'></span> fortune familiale.", a: "la", tr: "私はその一族の財産を探しています。" },
+            { q: "Ce sont <span class='blank-line'></span> grandes fortunes.", a: "des", tr: "それらは莫大な財産です。" }
+        ]},
+        { fr: "argent", jp: "お金", gender: "m", vowel: true, uncount: true, sentences: [
+            { q: "J'ai <span class='blank-line'></span> argent.", a: "de l'", tr: "私はお金を持っています。" },
+            { q: "Il gagne <span class='blank-line'></span> argent.", a: "de l'", tr: "彼は金を稼ぎます。" },
+            { q: "Nous comptons <span class='blank-line'></span> argent.", a: "l'", tr: "私たちはそのお金を数えます。" }
+        ]},
+        { fr: "oeil", jp: "目", gender: "m", vowel: true, uncount: false, sentences: [
+            { q: "Je ferme <span class='blank-line'></span> oeil.", a: "l'", tr: "私はその目を閉じます。" },
+            { q: "Elle a <span class='blank-line'></span> bel oeil.", a: "un", tr: "彼女は一つの美しい目をしています。" },
+            { q: "Je regarde ses <span class='blank-line'></span> yeux.", a: "les", tr: "私は彼女のその目を見ています。" }
+        ]},
+        { fr: "nez", jp: "鼻", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je touche <span class='blank-line'></span> nez.", a: "le", tr: "私はその鼻を触ります。" },
+            { q: "C'est <span class='blank-line'></span> petit nez.", a: "un", tr: "それは一つの小さな鼻です。" },
+            { q: "Il y a <span class='blank-line'></span> nez rouges.", a: "des", tr: "何人かの赤い鼻の人たちがいます。" }
+        ]},
+        { fr: "cheveux", jp: "髪", gender: "m", vowel: false, uncount: false, sentences: [
+            { q: "Je coupe <span class='blank-line'></span> cheveux.", a: "les", tr: "私はその髪を切ります。" },
+            { q: "Il a <span class='blank-line'></span> cheveu blanc.", a: "un", tr: "彼には一本の白髪があります。" },
+            { q: "Elle peigne <span class='blank-line'></span> cheveux.", a: "les", tr: "彼女はその髪をとかします。" }
+        ]}
+        
+        // 省略せず、実際には全110単語に対して同様のデータ構造を作成
+    ];
+
+    const allArticles = ["un", "une", "des", "le", "la", "l'", "les", "du", "de la", "de l'"];
+    let quizSet = []; let currentIndex = 0; let userResults = [];
+
+    function initQuiz() {
+    const countVal = document.getElementById('count-select').value;
+    let masc = [], fem = [], plur = [];
+    
+    // 1. 全問題を「男性単数」「女性単数」「複数」に分類
+    database.forEach(item => {
+        item.sentences.forEach(s => {
+            const data = { ...s, jp: item.jp, fr: item.fr };
+            if (s.a === 'les' || s.a === 'des') {
+                plur.push(data);
+            } else if (item.gender === 'm') {
+                masc.push(data);
+            } else {
+                fem.push(data);
+            }
+        });
+    });
+
+    // 2. 各リストをシャッフル
+    const shuffle = (arr) => arr.sort(() => Math.random() - 0.5);
+    shuffle(masc); shuffle(fem); shuffle(plur);
+
+    // 3. 総問題数と、各カテゴリー30%の個数を計算
+    const total = countVal === 'all' ? (masc.length + fem.length + plur.length) : parseInt(countVal);
+    const count30 = Math.floor(total * 0.3);
+    
+    // 4. 各カテゴリーから30%ずつ取り出し、残りの枠をランダムに補充
+    quizSet = [
+        ...masc.splice(0, count30),
+        ...fem.splice(0, count30),
+        ...plur.splice(0, count30)
+    ];
+
+    const remainingPool = shuffle([...masc, ...fem, ...plur]);
+    quizSet = shuffle([...quizSet, ...remainingPool.slice(0, total - quizSet.length)]);
+    
+    currentIndex = 0; userResults = [];
+    showScreen('screen-quiz');
+    renderQuestion();
+}
+
+    function renderQuestion() {
+        const q = quizSet[currentIndex];
+        document.getElementById('card').classList.remove('is-flipped');
+        document.getElementById('display-q').innerHTML = q.q;
+        document.getElementById('display-hint').innerText = q.tr;
+        document.getElementById('progress').innerText = `${currentIndex + 1} / ${quizSet.length}`;
+
+        const area = document.getElementById('choice-area');
+        area.innerHTML = '';
+        
+        let others = allArticles.filter(a => a !== q.a).sort(() => Math.random() - 0.5).slice(0, 5);
+        let choices = [q.a, ...others].sort(() => Math.random() - 0.5);
+
+        choices.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-choice';
+            btn.innerText = c;
+            btn.onclick = () => handleAnswer(c);
+            area.appendChild(btn);
+        });
+    }
+
+    function flipCard() { document.getElementById('card').classList.toggle('is-flipped'); }
+
+    function handleAnswer(ans) {
+        const q = quizSet[currentIndex];
+        const isCorrect = (ans === q.a);
+        userResults.push({ ...q, userChoice: ans, isCorrect });
+
+        const fb = document.getElementById('feedback');
+        fb.innerText = ans === 'u' ? '？' : (isCorrect ? '〇' : '×');
+        fb.style.color = ans === 'u' ? 'var(--unknown-gray)' : (isCorrect ? 'var(--masculin-blue)' : 'var(--feminin-red)');
+        fb.style.display = 'block';
+
+        setTimeout(() => {
+            fb.style.display = 'none';
+            currentIndex++;
+            if (currentIndex < quizSet.length) renderQuestion(); else showFinalResult();
+        }, 600);
+    }
+
+    function showFinalResult() {
+        showScreen('result-screen');
+        const tbody = document.getElementById('result-body');
+        tbody.innerHTML = '';
+
+        userResults.sort((a, b) => {
+            const getP = (res) => res.userChoice === 'u' ? 1 : (res.isCorrect ? 3 : 2);
+            return getP(a) - getP(b) || a.fr.localeCompare(b.fr);
+        });
+
+        userResults.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = r.userChoice === 'u' ? 'res-row-u' : (r.isCorrect ? 'res-row-o' : 'res-row-x');
+            tr.innerHTML = `<td>${r.isCorrect?'〇':(r.userChoice==='u'?'？':'×')}</td><td style="text-align:left">${r.q.replace("<span class='blank-line'></span>", "<b>"+r.a+"</b>")}</td><td>${r.userChoice==='u'?'？':r.userChoice}</td><td>${r.a}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function toggleHelp(show) { document.getElementById('help-overlay').style.display = show ? 'flex' : 'none'; }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(id);
+        if (target) target.classList.add('active');
+    }
+</script>
+</body>
+</html>

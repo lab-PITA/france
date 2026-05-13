@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FR Conjugaison - Groupe 1 Focus</title>
+    <style>
+        :root { --primary: #007bff; --wrong: #dc3545; --unknown: #6c757d; --bg: #f4f7f9; }
+        body { font-family: -apple-system, sans-serif; background-color: var(--bg); margin: 0; display: flex; justify-content: center; height: 100vh; }
+        .app-container { width: 100%; max-width: 430px; background: white; display: flex; flex-direction: column; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        header { padding: 15px; text-align: center; font-weight: bold; border-bottom: 2px solid #eee; }
+        .screen { display: none; flex-direction: column; height: 100%; padding: 20px; box-sizing: border-box; }
+        .screen.active { display: flex; }
+        .question-box { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .sentence { font-size: 1.5rem; font-weight: bold; margin-bottom: 40px; line-height: 1.4; min-height: 4.5rem; }
+        .target-blank { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+        .btn { padding: 18px 10px; font-size: 1rem; border-radius: 12px; border: 2px solid #eee; background: white; font-weight: bold; cursor: pointer; transition: 0.1s; }
+        .btn:active { background: #f0f0f0; transform: scale(0.98); }
+        .btn-u { grid-column: span 2; margin-top: 10px; color: var(--unknown); font-weight: normal; font-size: 0.9rem; }
+        .result-scroll { overflow-y: auto; flex-grow: 1; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th { background: #f8f9fa; padding: 10px; border-bottom: 2px solid #eee; position: sticky; top: 0; }
+        td { padding: 12px 4px; border-bottom: 1px solid #eee; text-align: center; }
+        .res-u { background: #f1f3f5; color: var(--unknown); }
+        .res-x { background: #fff5f5; color: var(--wrong); font-weight: bold; }
+        .res-o { color: var(--primary); }
+        #feedback { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 10rem; z-index: 100; display: none; pointer-events: none; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>フランス語 活用ドリル (第1群 & être/avoir)</header>
+
+    <div id="screen-start" class="screen active">
+        <div style="margin-top:40px; text-align:center">
+            <h2>文脈活用ドリル</h2>
+            <p>第1群規則動詞(-er)と<br>être / avoirに特化した練習です。</p>
+            <button class="btn" style="background:var(--primary); color:white; width:100%; margin-top:30px; border:none;" onclick="initQuiz()">練習を開始する</button>
+        </div>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div id="progress" style="text-align:right; font-size:0.8rem; color:#999">1 / 15</div>
+        <div class="question-box">
+            <div id="q-sentence" class="sentence"></div>
+            <div class="choice-grid" id="choice-area"></div>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <h2 style="margin-bottom:10px">結果発表</h2>
+        <div class="result-scroll">
+            <table>
+                <thead>
+                    <tr><th>結</th><th>問題文</th><th>回答</th><th>正解</th></tr>
+                </thead>
+                <tbody id="result-body"></tbody>
+            </table>
+        </div>
+        <button class="btn" onclick="location.reload()" style="margin-top:15px; width:100%; border:none; background:#eee">もう一度</button>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<script>
+    // 画像から抽出した第1群動詞(-er) + être, avoir
+    const verbs = [
+        { inf: "être", vowel: false, context: "étudiant(e)", forms: { je:"suis", tu:"es", il:"est", nous:"sommes", vous:"êtes", elles:"sont" } },
+        { inf: "avoir", vowel: true, context: "un dictionnaire", forms: { je:"ai", tu:"as", il:"a", nous:"avons", vous:"avez", elles:"ont" } },
+        { inf: "aimer", vowel: true, context: "le café", forms: { je:"aime", tu:"aimes", il:"aime", nous:"aimons", vous:"aimez", elles:"aiment" } },
+        { inf: "arriver", vowel: true, context: "à la gare", forms: { je:"arrive", tu:"arrives", il:"arrive", nous:"arrivons", vous:"arrivez", elles:"arrivent" } },
+        { inf: "chanter", vowel: false, context: "une chanson", forms: { je:"chante", tu:"chantes", il:"chante", nous:"chantons", vous:"chantez", elles:"chantent" } },
+        { inf: "danser", vowel: false, context: "bien", forms: { je:"danse", tu:"danses", il:"danse", nous:"dansons", vous:"dansez", elles:"dansent" } },
+        { inf: "habiter", vowel: true, context: "à Paris", forms: { je:"habite", tu:"habites", il:"habite", nous:"habitons", vous:"habitez", elles:"habitent" } },
+        { inf: "marcher", vowel: false, context: "vite", forms: { je:"marche", tu:"marches", il:"marche", nous:"marchons", vous:"marchez", elles:"marchent" } },
+        { inf: "parler", vowel: false, context: "français", forms: { je:"parle", tu:"parles", il:"parle", nous:"parlons", vous:"parlez", elles:"parlent" } },
+        { inf: "travailler", vowel: false, context: "beaucoup", forms: { je:"travaille", tu:"travailles", il:"travaille", nous:"travaillons", vous:"travaillez", elles:"travaillent" } },
+        { inf: "acheter", vowel: true, context: "un cadeau", forms: { je:"achète", tu:"achètes", il:"achète", nous:"achetons", vous:"achetez", elles:"achètent" } },
+        { inf: "adorer", vowel: true, context: "le cinéma", forms: { je:"adore", tu:"adores", il:"adore", nous:"adorons", vous:"adorez", elles:"adorent" } },
+        { inf: "gagner", vowel: false, context: "de l'argent", forms: { je:"gagne", tu:"gagnes", il:"gagne", nous:"gagnons", vous:"gagnez", elles:"gagnent" } },
+        { inf: "manger", vowel: false, context: "une pomme", forms: { je:"mange", tu:"manges", il:"mange", nous:"mangeons", vous:"mangez", elles:"mangent" } },
+        { inf: "préférer", vowel: false, context: "le vin", forms: { je:"préfère", tu:"préfères", il:"préfère", nous:"préférons", vous:"préférez", elles:"préfèrent" } },
+        { inf: "envoyer", vowel: true, context: "une lettre", forms: { je:"envoie", tu:"envoies", il:"envoie", nous:"envoyons", vous:"envoyez", elles:"envoient" } },
+        { inf: "regarder", vowel: false, context: "la télé", forms: { je:"regarde", tu:"regardes", il:"regarde", nous:"regardons", vous:"regardez", elles:"regardent" } },
+        { inf: "écouter", vowel: true, context: "la radio", forms: { je:"écoute", tu:"écoutes", il:"écoute", nous:"écoutons", vous:"écoutez", elles:"écoutent" } },
+        { inf: "chercher", vowel: false, context: "un stylo", forms: { je:"cherche", tu:"cherches", il:"cherche", nous:"cherchons", vous:"cherchez", elles:"cherchent" } },
+        { inf: "jouer", vowel: false, context: "au tennis", forms: { je:"joue", tu:"joues", il:"joue", nous:"jouons", vous:"jouez", elles:"jouent" } },
+        { inf: "donner", vowel: false, context: "un cadeau", forms: { je:"donne", tu:"donnes", il:"donne", nous:"donnons", vous:"donnez", elles:"donnent" } },
+        { inf: "entrer", vowel: true, context: "dans la chambre", forms: { je:"entre", tu:"entres", il:"entre", nous:"entrons", vous:"entrez", elles:"entrent" } },
+        { inf: "fermer", vowel: false, context: "la porte", forms: { je:"ferme", tu:"fermes", il:"ferme", nous:"fermons", vous:"fermez", elles:"ferment" } },
+        { inf: "apporter", vowel: true, context: "du vin", forms: { je:"apporte", tu:"apportes", il:"apporte", nous:"apportons", vous:"apportez", elles:"apportent" } }
+    ];
+
+    const subjects = [{id:"je",label:"je"}, {id:"tu",label:"tu"}, {id:"il",label:"il"}, {id:"nous",label:"nous"}, {id:"vous",label:"vous"}, {id:"elles",label:"elles"}];
+
+    let quizSet = [];
+    let currentIndex = 0;
+    let results = [];
+
+    function initQuiz() {
+        quizSet = []; currentIndex = 0; results = [];
+        const eVerb = verbs.find(v => v.inf === "être");
+        const aVerb = verbs.find(v => v.inf === "avoir");
+        
+        // 必須枠（être 2問, avoir 2問）
+        for(let i=0; i<2; i++) quizSet.push(createQ(eVerb));
+        for(let i=0; i<2; i++) quizSet.push(createQ(aVerb));
+        
+        // 残り11問をランダムに補充
+        while(quizSet.length < 15) {
+            const v = verbs[Math.floor(Math.random() * verbs.length)];
+            quizSet.push(createQ(v));
+        }
+
+        quizSet.sort(() => Math.random() - 0.5);
+        showScreen('screen-quiz');
+        renderQuestion();
+    }
+
+    function createQ(v) {
+        const s = subjects[Math.floor(Math.random() * subjects.length)];
+        let subLabel = (s.id === 'je' && v.vowel) ? "j'" : (s.id === 'je' ? "je " : s.label + " ");
+        return { subLabel, context: v.context, correct: v.forms[s.id], subjectId: s.id };
+    }
+
+    function renderQuestion() {
+        const q = quizSet[currentIndex];
+        document.getElementById('progress').innerText = `${currentIndex + 1} / ${quizSet.length}`;
+        document.getElementById('q-sentence').innerHTML = `${q.subLabel}<span class="target-blank">[ ? ]</span> ${q.context}`;
+        
+        let choices = new Set();
+        choices.add(q.correct);
+
+        while(choices.size < 5) {
+            const rv = verbs[Math.floor(Math.random() * verbs.length)];
+            const rs = subjects[Math.floor(Math.random() * subjects.length)];
+            const candidate = rv.forms[rs.id];
+            
+            // ダミーの条件：今の主語に対して文法的に正解になってしまわないこと
+            const isAnyVerbMatching = verbs.some(v => v.forms[q.subjectId] === candidate);
+            if (!isAnyVerbMatching && candidate !== q.correct) choices.add(candidate);
+        }
+
+        const area = document.getElementById('choice-area');
+        area.innerHTML = '';
+        Array.from(choices).sort(() => Math.random() - 0.5).forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'btn'; btn.innerText = c;
+            btn.onclick = () => handleAnswer(c);
+            area.appendChild(btn);
+        });
+
+        const unk = document.createElement('button');
+        unk.className = 'btn btn-u'; unk.innerText = 'Je ne sais pas (わからない)';
+        unk.onclick = () => handleAnswer('u');
+        area.appendChild(unk);
+    }
+
+    function handleAnswer(ans) {
+        const q = quizSet[currentIndex];
+        const status = (ans === 'u') ? 'u' : (ans === q.correct ? 'o' : 'x');
+        results.push({ ...q, userAns: ans, status });
+
+        const fb = document.getElementById('feedback');
+        fb.innerText = status === 'o' ? '〇' : (status === 'x' ? '×' : '？');
+        fb.style.color = status === 'o' ? 'var(--primary)' : (status === 'x' ? 'var(--wrong)' : 'var(--unknown)');
+        fb.style.display = 'block';
+
+        setTimeout(() => {
+            fb.style.display = 'none';
+            currentIndex++;
+            if(currentIndex < quizSet.length) renderQuestion(); else showResult();
+        }, 600);
+    }
+
+    function showResult() {
+        showScreen('screen-result');
+        const tbody = document.getElementById('result-body');
+        tbody.innerHTML = '';
+        const order = { 'u': 1, 'x': 2, 'o': 3 };
+        results.sort((a, b) => order[a.status] - order[b.status]);
+
+        results.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = `res-${r.status}`;
+            tr.innerHTML = `
+                <td>${r.status==='o'?'〇':(r.status==='x'?'×':'？')}</td>
+                <td style="text-align:left">${r.subLabel}... ${r.context}</td>
+                <td>${r.status==='u'?'？':r.userAns}</td>
+                <td><strong>${r.correct}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+</script>
+</body>
+</html>

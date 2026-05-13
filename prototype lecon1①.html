@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FR Leçon 1 - Fixed Layout</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --wrong: #dc3545;
+            --unknown: #6c757d;
+            --bg: #f4f7f9;
+        }
+
+        body {
+            font-family: -apple-system, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 430px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        header {
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 2px solid #eee;
+        }
+
+        .screen { display: none; flex-direction: column; height: 100%; padding: 20px; box-sizing: border-box; }
+        .screen.active { display: flex; }
+
+        /* 問題文固定エリア */
+        .question-box {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* ここを固定することで移動を防ぐ */
+        .top-content {
+            width: 100%;
+            min-height: 220px; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .sentence { font-size: 1.8rem; font-weight: bold; margin-bottom: 15px; line-height: 1.4; }
+        .meaning { color: var(--primary); font-size: 1.3rem; font-weight: bold; }
+        .target-blank { border-bottom: 3px solid var(--primary); padding: 0 10px; }
+
+        /* さらに巨大化したボタン */
+        .show-btn {
+            width: 100%;
+            padding: 45px 20px;
+            font-size: 1.8rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #0056b3;
+            margin-top: 20px;
+        }
+        .show-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #0056b3; }
+
+        .choice-grid {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 22px 10px;
+            font-size: 1.2rem;
+            border-radius: 15px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn:active { background: #f0f0f0; }
+        .btn-u { grid-column: span 2; margin-top: 10px; color: var(--unknown); font-weight: normal; font-size: 1.1rem; }
+
+        .result-scroll { overflow-y: auto; flex-grow: 1; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background: #f8f9fa; padding: 10px; border-bottom: 2px solid #eee; position: sticky; top: 0; }
+        td { padding: 12px 4px; border-bottom: 1px solid #eee; text-align: center; }
+
+        .res-u { background: #f1f3f5; color: var(--unknown); }
+        .res-x { background: #fff5f5; color: var(--wrong); font-weight: bold; }
+        .res-o { color: var(--primary); }
+
+        #feedback {
+            position: absolute;
+            top: 40%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10rem;
+            z-index: 100;
+            display: none;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>フランス語 活用ドリル (L1-L3)</header>
+
+    <div id="screen-start" class="screen active">
+        <div style="margin-top:40px; text-align:center">
+            <h2>活用をマスターしよう</h2>
+            <p>画像リストの動詞のみを使用。<br>選択肢を見る前に頭の中で答えを出しましょう。</p>
+            <button class="btn" style="background:var(--primary); color:white; width:100%; margin-top:30px; border:none;" onclick="initQuiz()">練習を開始する</button>
+        </div>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div id="progress" style="text-align:right; font-size:0.8rem; color:#999">1 / 15</div>
+        <div class="question-box">
+            <div class="top-content">
+                <div id="q-sentence" class="sentence"></div>
+                <div id="q-meaning" class="meaning"></div>
+            </div>
+            
+            <button id="show-choices-btn" class="show-btn" onclick="showChoices()">選択肢を表示</button>
+            <div class="choice-grid" id="choice-area"></div>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <h2 style="margin-bottom:10px">結果発表</h2>
+        <div class="result-scroll">
+            <table>
+                <thead>
+                    <tr><th>結</th><th>問題文</th><th>回答</th><th>正解</th></tr>
+                </thead>
+                <tbody id="result-body"></tbody>
+            </table>
+        </div>
+        <button class="btn" onclick="location.reload()" style="margin-top:15px; width:100%; border:none; background:#eee">もう一度</button>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<script>
+    // 画像から抽出した全16動詞
+    const verbs = [
+        { inf: "être", mean: "〜である", vowel: false, contexts: ["étudiant(e)", "professeur", "japonais(e)"], forms: { je:"suis", tu:"es", il:"est", nous:"sommes", vous:"êtes", elles:"sont" } },
+        { inf: "avoir", mean: "持っている、ある", vowel: true, contexts: ["faim", "soif", "sommeil"], forms: { je:"ai", tu:"as", il:"a", nous:"avons", vous:"avez", elles:"ont" } },
+        { inf: "aimer", mean: "好む、好きである", vowel: true, contexts: ["le café", "le français", "le chocolat"], forms: { je:"aime", tu:"aimes", il:"aime", nous:"aimons", vous:"aimez", elles:"aiment" } },
+        { inf: "habiter", mean: "住む", vowel: true, contexts: ["à Paris", "à Tokyo", "ici"], forms: { je:"habite", tu:"habites", il:"habite", nous:"habitons", vous:"habitez", elles:"habitent" } },
+        { inf: "marcher", mean: "歩く", vowel: false, contexts: ["vite", "beaucoup", "ensemble"], forms: { je:"marche", tu:"marches", il:"marche", nous:"marchons", vous:"marchez", elles:"marchent" } },
+        { inf: "parler", mean: "話す", vowel: false, contexts: ["français", "japonais", "anglais"], forms: { je:"parle", tu:"parles", il:"parle", nous:"parlons", vous:"parlez", elles:"parlent" } },
+        { inf: "travailler", mean: "働く", vowel: false, contexts: ["beaucoup", "ici", "bien"], forms: { je:"travaille", tu:"travailles", il:"travaille", nous:"travaillons", vous:"travaillez", elles:"travaillent" } },
+        { inf: "chanter", mean: "歌う", vowel: false, contexts: ["une chanson", "bien", "beaucoup"], forms: { je:"chante", tu:"chantes", il:"chante", nous:"chantons", vous:"chantez", elles:"chantent" } },
+        { inf: "danser", mean: "踊る", vowel: false, contexts: ["bien", "ici", "beaucoup"], forms: { je:"danse", tu:"danses", il:"danse", nous:"dansons", vous:"dansez", elles:"dansent" } },
+        { inf: "acheter", mean: "買う", vowel: true, contexts: ["une pomme", "un cadeau", "un livre"], forms: { je:"achète", tu:"achètes", il:"achète", nous:"achetons", vous:"achetez", elles:"achètent" } },
+        { inf: "adorer", mean: "大好きである", vowel: true, contexts: ["le cinéma", "le café", "Paris"], forms: { je:"adore", tu:"adores", il:"adore", nous:"adorons", vous:"adorez", elles:"adorent" } },
+        { inf: "arriver", mean: "到着する", vowel: true, contexts: ["à Paris", "à Tokyo", "ici"], forms: { je:"arrive", tu:"arrives", il:"arrive", nous:"arrivons", vous:"arrivez", elles:"arrivent" } },
+        { inf: "gagner", mean: "稼ぐ、勝つ", vowel: false, contexts: ["de l'argent", "beaucoup", "bien"], forms: { je:"gagne", tu:"gagnes", il:"gagne", nous:"gagnons", vous:"gagnez", elles:"gagnent" } },
+        { inf: "manger", mean: "食べる", vowel: false, contexts: ["une pomme", "du fromage", "une banane"], forms: { je:"mange", tu:"manges", il:"mange", nous:"mangeons", vous:"mangez", elles:"mangent" } },
+        { inf: "préférer", mean: "〜のほうを好む", vowel: false, contexts: ["le vin", "le café", "le riz"], forms: { je:"préfère", tu:"préfères", il:"préfère", nous:"préférons", vous:"préférez", elles:"préfèrent" } },
+        { inf: "envoyer", mean: "送る", vowel: true, contexts: ["un cadeau", "une lettre", "un message"], forms: { je:"envoie", tu:"envoies", il:"envoie", nous:"envoyons", vous:"envoyez", elles:"envoient" } }
+    ];
+
+    const subjects = [{id:"je",label:"je"}, {id:"tu",label:"tu"}, {id:"il",label:"il"}, {id:"nous",label:"nous"}, {id:"vous",label:"vous"}, {id:"elles",label:"elles"}];
+
+    let quizSet = [];
+    let currentIndex = 0;
+    let results = [];
+
+    function initQuiz() {
+        quizSet = []; currentIndex = 0; results = [];
+        const eVerb = verbs.find(v => v.inf === "être");
+        const aVerb = verbs.find(v => v.inf === "avoir");
+        for(let i=0; i<2; i++) quizSet.push(createQ(eVerb));
+        for(let i=0; i<2; i++) quizSet.push(createQ(aVerb));
+        while(quizSet.length < 15) {
+            const v = verbs[Math.floor(Math.random() * verbs.length)];
+            quizSet.push(createQ(v));
+        }
+        quizSet.sort(() => Math.random() - 0.5);
+        showScreen('screen-quiz');
+        renderQuestion();
+    }
+
+    function createQ(v) {
+        const s = subjects[Math.floor(Math.random() * subjects.length)];
+        const ctx = v.contexts[Math.floor(Math.random() * v.contexts.length)];
+        let subLabel = (s.id === 'je' && v.vowel) ? "j'" : (s.id === 'je' ? "je " : s.label + " ");
+        return { subLabel, context: ctx, correct: v.forms[s.id], subjectId: s.id, mean: v.mean, allForms: Object.values(v.forms) };
+    }
+
+    function showChoices() {
+        document.getElementById('show-choices-btn').style.display = 'none';
+        document.getElementById('choice-area').style.display = 'grid';
+    }
+
+    function renderQuestion() {
+        const q = quizSet[currentIndex];
+        document.getElementById('progress').innerText = `${currentIndex + 1} / ${quizSet.length}`;
+        document.getElementById('q-sentence').innerHTML = `${q.subLabel}<span class="target-blank">?</span> ${q.context}`;
+        document.getElementById('q-meaning').innerText = `(意味: ${q.mean})`;
+
+        document.getElementById('show-choices-btn').style.display = 'block';
+        const area = document.getElementById('choice-area');
+        area.style.display = 'none';
+        area.innerHTML = '';
+
+        let choices = [...new Set(q.allForms)].sort(() => Math.random() - 0.5);
+        if (choices.length > 5) {
+            const filtered = choices.filter(c => c !== q.correct).slice(0, 4);
+            choices = [q.correct, ...filtered].sort(() => Math.random() - 0.5);
+        }
+
+        choices.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'btn'; btn.innerText = c;
+            btn.onclick = () => handleAnswer(c);
+            area.appendChild(btn);
+        });
+
+        const unk = document.createElement('button');
+        unk.className = 'btn btn-u'; unk.innerText = 'わからない';
+        unk.onclick = () => handleAnswer('u');
+        area.appendChild(unk);
+    }
+
+    function handleAnswer(ans) {
+        const q = quizSet[currentIndex];
+        const status = (ans === 'u') ? 'u' : (ans === q.correct ? 'o' : 'x');
+        results.push({ ...q, userAns: ans, status });
+
+        const fb = document.getElementById('feedback');
+        fb.innerText = status === 'o' ? '〇' : (status === 'x' ? '×' : '？');
+        fb.style.color = status === 'o' ? 'var(--primary)' : (status === 'x' ? 'var(--wrong)' : 'var(--unknown)');
+        fb.style.display = 'block';
+
+        setTimeout(() => {
+            fb.style.display = 'none';
+            currentIndex++;
+            if(currentIndex < quizSet.length) renderQuestion(); else showResult();
+        }, 600);
+    }
+
+    function showResult() {
+        showScreen('screen-result');
+        const tbody = document.getElementById('result-body');
+        tbody.innerHTML = '';
+        const order = { 'u': 1, 'x': 2, 'o': 3 };
+        results.sort((a, b) => order[a.status] - order[b.status]);
+
+        results.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = `res-${r.status}`;
+            tr.innerHTML = `
+                <td>${r.status==='o'?'〇':(r.status==='x'?'×':'？')}</td>
+                <td style="text-align:left">${r.subLabel}... ${r.context}<br><small>(${r.mean})</small></td>
+                <td>${r.status==='u'?'？':r.userAns}</td>
+                <td><strong>${r.correct}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+</script>
+</body>
+</html>

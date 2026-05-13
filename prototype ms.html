@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>フランス語名詞 性別判定</title>
+    <style>
+        :root {
+            --masculin-blue: #007bff;
+            --feminin-red: #dc3545;
+            --unknown-gray: #6c757d;
+            --bg-light: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-light);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 430px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            height: 100%;
+        }
+
+        header {
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 2px solid #eee;
+            position: relative;
+            background: white;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .help-btn {
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            width: 34px; height: 34px; background: #eee; color: #333;
+            border: 1px solid #ccc; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 1.2rem; font-weight: bold;
+        }
+
+        /* 画面切り替え設定（優先度バグ修正済み） */
+        .screen { 
+            display: none; 
+            flex-direction: column; 
+            height: 100%; 
+            width: 100%;
+            box-sizing: border-box; 
+            overflow: hidden; 
+        }
+        .screen.active { 
+            display: flex !important; 
+        }
+
+        /* 1. 設定画面 */
+        #setup-screen { padding: 40px 20px; text-align: center; }
+        .setup-group { margin-bottom: 30px; text-align: left; }
+        select { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; font-size: 1rem; border: 1px solid #ddd; }
+        .start-btn { width: 100%; height: 65px; background: var(--masculin-blue); color: white; border: none; border-radius: 15px; font-size: 1.2rem; font-weight: bold; cursor: pointer; }
+
+        /* 2. クイズ画面 */
+        .question-box { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
+        .top-info { text-align: right; font-size: 0.8rem; color: #999; height: 20px; }
+
+        .card-container { width: 300px; height: 220px; perspective: 1000px; margin: 20px auto; cursor: pointer; }
+        .card { width: 100%; height: 100%; position: relative; transition: transform 0.6s; transform-style: preserve-3d; }
+        .card.is-flipped { transform: rotateY(180deg); }
+        .card-face {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 20px; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            font-size: 2.5rem; font-weight: bold; padding: 20px; box-sizing: border-box; text-align: center;
+        }
+        .card-back { transform: rotateY(180deg); background: #fdfdfd; color: #666; font-size: 1.6rem; border: 1px solid #eee; }
+
+        .btn-group { display: flex; gap: 8px; width: 100%; padding-bottom: 20px; }
+        .btn-quiz {
+            flex: 1; height: 140px; font-size: 0.95rem; font-weight: bold; border-radius: 15px; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+        }
+        .btn-m { background-color: var(--masculin-blue); color: white; }
+        .btn-u { background-color: #f8f9fa; color: #333; border: 2px solid #ddd; }
+        .btn-f { background-color: var(--feminin-red); color: white; }
+
+        /* 3. ヒント画面 (詳細表を完全復元) */
+        #help-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; color: #333; z-index: 200;
+            display: none; flex-direction: column; padding: 20px; box-sizing: border-box; overflow-y: auto;
+        }
+        .close-help { align-self: flex-end; font-size: 2.5rem; cursor: pointer; color: #999; padding: 0 10px; }
+        .help-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 25px; border: 1px solid #eee; }
+        .help-table th { background: #f8f9fa; color: #666; font-weight: bold; }
+        .help-table th, .help-table td { border: 1px solid #eee; padding: 8px; text-align: left; }
+        .h-ending { font-weight: bold; font-size: 0.9rem; }
+        .h-ex { color: #666; font-style: italic; }
+
+        /* 4. 結果画面 */
+        #result-screen { height: 100%; flex-direction: column; }
+        .result-header-fixed { padding: 15px 20px; flex-shrink: 0; border-bottom: 1px solid #eee; background: white; }
+        .result-scroll-area { flex-grow: 1; overflow-y: auto; padding: 0 10px; }
+        .res-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
+        .res-table thead th { 
+            position: sticky; top: 0; background: #f8f9fa; 
+            padding: 12px 4px; border-bottom: 2px solid #eee; z-index: 10; 
+            text-align: center;
+        }
+        .res-table td { padding: 12px 4px; border-bottom: 1px solid #eee; text-align: center; }
+        .res-row-o { color: var(--masculin-blue); }
+        .res-row-x { color: var(--feminin-red); font-weight: bold; background-color: #fff5f5; }
+        .res-row-u { color: var(--unknown-gray); background-color: #f1f3f5; }
+        .result-footer-fixed { padding: 20px; flex-shrink: 0; border-top: 1px solid #eee; background: white; }
+
+        #feedback {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 10rem; z-index: 150; display: none; pointer-events: none; opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        名詞の性別判定
+        <div class="help-btn" onclick="toggleHelp(true)">?</div>
+    </header>
+
+    <div id="help-overlay">
+        <div class="close-help" onclick="toggleHelp(false)">×</div>
+        <h2 style="margin-top:0">性別判定のヒント</h2>
+
+        <h3 style="color:var(--masculin-blue); border-bottom: 2px solid var(--masculin-blue); display:inline-block">男性名詞になりやすい語尾</h3>
+        <table class="help-table">
+            <thead><tr><th>語尾</th><th>例</th><th>備考</th></tr></thead>
+            <tbody>
+                <tr><td class="h-ending">-ment</td><td class="h-ex">le monument</td><td>ほぼ100%男性</td></tr>
+                <tr><td class="h-ending">-isme</td><td class="h-ex">le réalisme</td><td>外来語や思想に多い</td></tr>
+                <tr><td class="h-ending">-age</td><td class="h-ex">le courage</td><td>例外：page, image, plage など</td></tr>
+                <tr><td class="h-ending">-eau</td><td class="h-ex">le bateau</td><td>例外：eau (水), peau (肌)</td></tr>
+                <tr><td class="h-ending">-phone</td><td class="h-ex">le téléphone</td><td>機器類に多い</td></tr>
+                <tr><td class="h-ending">-t</td><td class="h-ex">le robot</td><td>99%が男性と言われるルール</td></tr>
+            </tbody>
+        </table>
+
+        <h3 style="color:var(--feminin-red); border-bottom: 2px solid var(--feminin-red); display:inline-block">女性名詞になりやすい語尾</h3>
+        <table class="help-table">
+            <thead><tr><th>語尾</th><th>例</th><th>備考</th></tr></thead>
+            <tbody>
+                <tr><td class="h-ending">-tion/-sion</td><td class="h-ex">la station</td><td>ほぼ100%女性</td></tr>
+                <tr><td class="h-ending">-té</td><td class="h-ex">la beauté</td><td>抽象名詞に多い</td></tr>
+                <tr><td class="h-ending">-ette</td><td class="h-ex">la baguette</td><td>「小さいもの」を表すことが多い</td></tr>
+                <tr><td class="h-ending">-ure</td><td class="h-ex">la voiture</td><td>自然や道具に多い</td></tr>
+                <tr><td class="h-ending">-ence/-ance</td><td class="h-ex">la différence</td><td>例外：silence (沈黙)</td></tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top:10px">カテゴリーによる分類</h3>
+        <div style="font-size:0.85rem; line-height:1.6; margin-bottom:30px">
+            <p><b>● 男性になりやすい：</b><br>
+            ・曜日・月・季節: le lundi, le mai, le printemps<br>
+            ・言語名: le japonais, le français<br>
+            ・木の名前: le chêne, le pommier<br>
+            ・英語からの外来語: le burger, le weekend</p>
+            
+            <p><b>● 女性になりやすい：</b><br>
+            ・果物の名前: la pomme, la banane (例外: le citronなど)<br>
+            ・学問・教科: la géographie, la chimie</p>
+        </div>
+    </div>
+
+    <div id="setup-screen" class="screen active">
+        <h1 style="margin-top: 30px;">単語リスト全集</h1>
+        <div class="setup-group">
+            <label style="font-weight: bold; color: #666;">問題数を選択</label>
+            <select id="count-select">
+                <option value="10">10問</option>
+                <option value="20">20問</option>
+                <option value="30">30問</option>
+                <option value="all">全問</option>
+            </select>
+        </div>
+        <button class="start-btn" onclick="initQuiz()">学習開始</button>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div id="progress" class="top-info"></div>
+        <div class="question-box">
+            <div class="card-container" onclick="flipCard()">
+                <div id="card" class="card">
+                    <div class="card-face card-front" id="display-fr">---</div>
+                    <div class="card-face card-back" id="display-jp">---</div>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn-quiz btn-m" onclick="handleAnswer('m')">Masculin<br>(男性)</button>
+                <button class="btn-quiz btn-u" onclick="handleAnswer('u')">わから<br>ない</button>
+                <button class="btn-quiz btn-f" onclick="handleAnswer('f')">Féminin<br>(女性)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div class="result-header-fixed"><h2>結果発表</h2></div>
+        <div class="result-scroll-area">
+            <table class="res-table">
+                <thead>
+                    <tr>
+                        <th style="width:15%">結</th>
+                        <th style="width:30%">単語</th>
+                        <th style="width:15%">答</th>
+                        <th style="width:15%">正</th>
+                        <th style="width:25%">意味</th>
+                    </tr>
+                </thead>
+                <tbody id="result-body"></tbody>
+            </table>
+        </div>
+        <div class="result-footer-fixed">
+            <button class="start-btn" onclick="location.reload()">トップに戻る</button>
+        </div>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<script>
+    // 指定された全単語リスト (110項目)
+    const database = [
+        { fr: "étudiant", jp: "学生(男)", gender: "m" }, { fr: "étudiante", jp: "学生(女)", gender: "f" },
+        { fr: "français", jp: "フランス語", gender: "m" }, { fr: "journal", jp: "新聞", gender: "m" },
+        { fr: "livre", jp: "本", gender: "m" }, { fr: "mère", jp: "母", gender: "f" },
+        { fr: "père", jp: "父", gender: "m" }, { fr: "japonais", jp: "日本語", gender: "m" },
+        { fr: "leçon", jp: "授業、課", gender: "f" }, { fr: "professeur", jp: "教師、教授(男)", gender: "m" },
+        { fr: "professeure", jp: "教師、教授(女)", gender: "f" }, { fr: "raison", jp: "理由", gender: "f" },
+        { fr: "soif", jp: "渇き", gender: "f" }, { fr: "sommeil", jp: "眠り", gender: "m" },
+        { fr: "sujet", jp: "主語", gender: "m" }, { fr: "tort", jp: "間違い", gender: "m" },
+        { fr: "adresse", jp: "住所", gender: "f" }, { fr: "alcool", jp: "アルコール", gender: "m" },
+        { fr: "ami", jp: "友人(男)", gender: "m" }, { fr: "appartement", jp: "アパルトマン", gender: "m" },
+        { fr: "arbre", jp: "木", gender: "m" }, { fr: "argent", jp: "お金", gender: "m" },
+        { fr: "beurre", jp: "バター", gender: "m" }, { fr: "bonbon", jp: "キャンディー", gender: "m" },
+        { fr: "café", jp: "コーヒー", gender: "m" }, { fr: "cahier", jp: "ノート", gender: "m" },
+        { fr: "chance", jp: "運、幸運", gender: "f" }, { fr: "chat", jp: "猫", gender: "m" },
+        { fr: "chaussure", jp: "靴", gender: "f" }, { fr: "chemise", jp: "シャツ", gender: "f" },
+        { fr: "chien", jp: "犬", gender: "m" }, { fr: "cinéma", jp: "映画館", gender: "m" },
+        { fr: "confiture", jp: "ジャム", gender: "f" }, { fr: "cravate", jp: "ネクタイ", gender: "f" },
+        { fr: "crayon", jp: "鉛筆", gender: "m" }, { fr: "dictionnaire", jp: "辞書", gender: "m" },
+        { fr: "école", jp: "学校", gender: "f" }, { fr: "femme", jp: "女性、妻", gender: "f" },
+        { fr: "film", jp: "映画", gender: "m" }, { fr: "fortune", jp: "財産", gender: "f" },
+        { fr: "fraise", jp: "イチゴ", gender: "f" }, { fr: "frère", jp: "兄弟", gender: "m" },
+        { fr: "fromage", jp: "チーズ", gender: "m" }, { fr: "gant", jp: "手袋", gender: "m" },
+        { fr: "gomme", jp: "消しゴム", gender: "f" }, { fr: "habitude", jp: "習慣", gender: "f" },
+        { fr: "herbe", jp: "草", gender: "f" }, { fr: "homme", jp: "人間", gender: "m" },
+        { fr: "horloge", jp: "時計", gender: "f" }, { fr: "hôtel", jp: "ホテル", gender: "m" },
+        { fr: "huile", jp: "油", gender: "f" }, { fr: "jour", jp: "日", gender: "m" },
+        { fr: "magasin", jp: "店", gender: "m" }, { fr: "maison", jp: "家", gender: "f" },
+        { fr: "montagne", jp: "山", gender: "f" }, { fr: "moto", jp: "バイク", gender: "f" },
+        { fr: "oncle", jp: "伯父", gender: "m" }, { fr: "orange", jp: "オレンジ", gender: "f" },
+        { fr: "pain", jp: "パン", gender: "m" }, { fr: "parent", jp: "親、両親", gender: "m" },
+        { fr: "patience", jp: "忍耐", gender: "f" }, { fr: "photo", jp: "写真", gender: "f" },
+        { fr: "revue", jp: "雑誌", gender: "f" }, { fr: "riz", jp: "米", gender: "m" },
+        { fr: "robe", jp: "ドレス", gender: "f" }, { fr: "sac", jp: "バッグ", gender: "m" },
+        { fr: "soeur", jp: "姉妹", gender: "f" }, { fr: "stylo", jp: "ペン", gender: "m" },
+        { fr: "table", jp: "テーブル", gender: "f" }, { fr: "tante", jp: "伯母", gender: "f" },
+        { fr: "usine", jp: "工場", gender: "f" }, { fr: "vélo", jp: "自転車", gender: "m" },
+        { fr: "veston", jp: "上着", gender: "m" }, { fr: "viande", jp: "肉", gender: "f" },
+        { fr: "voiture", jp: "車", gender: "f" }, { fr: "pêche", jp: "モモ", gender: "f" },
+        { fr: "pierre", jp: "石", gender: "f" }, { fr: "président", jp: "大統領", gender: "m" },
+        { fr: "restaurant", jp: "レストラン", gender: "m" }, { fr: "soleil", jp: "太陽", gender: "m" },
+        { fr: "supermarché", jp: "スーパー", gender: "m" }, { fr: "tableau", jp: "絵", gender: "m" },
+        { fr: "toit", jp: "屋根", gender: "m" }, { fr: "tour", jp: "回転", gender: "m" },
+        { fr: "travail", jp: "仕事", gender: "m" }, { fr: "tuyau", jp: "パイプ", gender: "m" },
+        { fr: "ville", jp: "都市", gender: "f" }, { fr: "vin", jp: "ワイン", gender: "m" },
+        { fr: "yeux", jp: "目(複)", gender: "m" }, { fr: "clef", jp: "鍵", gender: "f" },
+        { fr: "église", jp: "教会", gender: "f" }, { fr: "étranger", jp: "外国人", gender: "m" },
+        { fr: "étoile", jp: "星", gender: "f" }, { fr: "feuille", jp: "葉、紙", gender: "f" },
+        { fr: "jardin", jp: "庭", gender: "m" }, { fr: "jeu", jp: "ゲーム", gender: "m" },
+        { fr: "lumière", jp: "光", gender: "f" }, { fr: "madame", jp: "夫人", gender: "f" },
+        { fr: "messieurs", jp: "男性(複)", gender: "m" }, { fr: "monsieur", jp: "男性", gender: "m" },
+        { fr: "nez", jp: "鼻", gender: "m" }, { fr: "oeil", jp: "目(単)", gender: "m" },
+        { fr: "oeuf", jp: "卵", gender: "m" }, { fr: "oiseau", jp: "鳥", gender: "m" },
+        { fr: "ordre", jp: "順序", gender: "m" }, { fr: "panier", jp: "かご", gender: "m" },
+        { fr: "paquet", jp: "小包", gender: "m" }, { fr: "acteur", jp: "俳優", gender: "m" },
+        { fr: "automne", jp: "秋", gender: "m" }, { fr: "banane", jp: "バナナ", gender: "f" },
+        { fr: "bijou", jp: "アクセサリー", gender: "m" }, { fr: "bouteille", jp: "瓶", gender: "f" },
+        { fr: "bureau", jp: "机、事務所", gender: "m" }, { fr: "carte", jp: "カード", gender: "f" },
+        { fr: "centre", jp: "中心", gender: "m" }, { fr: "chambre", jp: "部屋", gender: "f" },
+        { fr: "château", jp: "城", gender: "m" }, { fr: "chèque", jp: "小切手", gender: "m" },
+        { fr: "cheval", jp: "馬", gender: "m" }, { fr: "cheveux", jp: "髪", gender: "m" },
+        { fr: "chinois", jp: "中国語", gender: "m" }, { fr: "choix", jp: "選択", gender: "m" }
+    ];
+
+    let quizSet = []; let currentIndex = 0; let userResults = [];
+
+    function initQuiz() {
+        const countVal = document.getElementById('count-select').value;
+        let shuffled = [...database].sort(() => Math.random() - 0.5);
+        let limit = countVal === 'all' ? shuffled.length : parseInt(countVal);
+        quizSet = shuffled.slice(0, limit);
+        currentIndex = 0; userResults = [];
+        showScreen('screen-quiz');
+        updateQuestion();
+    }
+
+    function flipCard() { document.getElementById('card').classList.toggle('is-flipped'); }
+
+    function updateQuestion() {
+        const q = quizSet[currentIndex];
+        document.getElementById('card').classList.remove('is-flipped');
+        document.getElementById('display-fr').innerText = q.fr;
+        document.getElementById('display-jp').innerText = q.jp;
+        document.getElementById('progress').innerText = `${currentIndex + 1} / ${quizSet.length}`;
+    }
+
+    function handleAnswer(choice) {
+        const q = quizSet[currentIndex];
+        const isCorrect = (choice === q.gender);
+        userResults.push({ ...q, userChoice: choice, isCorrect: isCorrect });
+        const fb = document.getElementById('feedback');
+        fb.innerText = choice === 'u' ? '？' : (isCorrect ? '〇' : '×');
+        fb.style.color = choice === 'u' ? 'var(--unknown-gray)' : (isCorrect ? 'var(--masculin-blue)' : 'var(--feminin-red)');
+        fb.style.display = 'block';
+        setTimeout(() => {
+            fb.style.display = 'none'; currentIndex++;
+            if (currentIndex < quizSet.length) updateQuestion(); else showFinalResult();
+        }, 600);
+    }
+
+    function showFinalResult() {
+        showScreen('result-screen');
+        const tbody = document.getElementById('result-body');
+        tbody.innerHTML = '';
+        userResults.sort((a, b) => {
+            const getPriority = (res) => { if (res.userChoice === 'u') return 1; if (!res.isCorrect) return 2; return 3; };
+            const pA = getPriority(a); const pB = getPriority(b);
+            if (pA !== pB) return pA - pB;
+            return a.fr.localeCompare(b.fr);
+        });
+        const gText = { m: '男', f: '女', u: '？' };
+        userResults.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = r.userChoice === 'u' ? 'res-row-u' : (r.isCorrect ? 'res-row-o' : 'res-row-x');
+            const mark = r.userChoice === 'u' ? '？' : (r.isCorrect ? '〇' : '×');
+            tr.innerHTML = `<td>${mark}</td><td>${r.fr}</td><td>${gText[r.userChoice]}</td><td>${gText[r.gender]}</td><td>${r.jp}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function toggleHelp(show) { document.getElementById('help-overlay').style.display = show ? 'flex' : 'none'; }
+    
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(id);
+        if (target) target.classList.add('active');
+    }
+</script>
+</body>
+</html>
