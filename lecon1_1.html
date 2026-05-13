@@ -192,22 +192,61 @@
     let results = [];
 
     function initQuiz() {
-        quizSet = []; currentIndex = 0; results = [];
-        const eVerb = verbs.find(v => v.inf === "être");
-        const aVerb = verbs.find(v => v.inf === "avoir");
-        for(let i=0; i<2; i++) quizSet.push(createQ(eVerb));
-        for(let i=0; i<2; i++) quizSet.push(createQ(aVerb));
-        while(quizSet.length < 15) {
-            const v = verbs[Math.floor(Math.random() * verbs.length)];
-            quizSet.push(createQ(v));
-        }
+    const countVal = document.getElementById('count-select').value;
+    quizSet = []; currentIndex = 0; results = [];
+
+    // 1. 総出題数 (N) を確定させる
+    const totalVerbsCount = verbs.length * 6; // 理論上の全問題数
+    const N = countVal === 'all' ? totalVerbsCount : parseInt(countVal);
+
+    // 2. 主語プールを計算で作成
+    let subjectPool = [];
+    const baseCount = Math.floor(N / subjects.length); // 各主語が最低出る回数
+    const remainder = N % subjects.length;           // 余り
+
+    // 全主語を均等に baseCount 分追加
+    for (let i = 0; i < baseCount; i++) {
+        subjects.forEach(s => subjectPool.push(s));
+    }
+    // 余り（端数）をランダムな主語で埋める
+    let extraSubjects = [...subjects].sort(() => Math.random() - 0.5).slice(0, remainder);
+    subjectPool = subjectPool.concat(extraSubjects);
+    
+    // 主語の順番をシャッフル
+    subjectPool.sort(() => Math.random() - 0.5);
+
+    // 3. 動詞の選定
+    const eVerb = verbs.find(v => v.inf === "être");
+    const aVerb = verbs.find(v => v.inf === "avoir");
+    let selectedVerbs = [];
+
+    // être, avoir を優先的に入れる（Nが小さい場合を考慮）
+    if (N >= 4) {
+        for(let i=0; i<2; i++) selectedVerbs.push(eVerb);
+        for(let i=0; i<2; i++) selectedVerbs.push(aVerb);
+    }
+
+    // 残りの枠をランダムな動詞で埋める
+    while(selectedVerbs.length < N) {
+        selectedVerbs.push(verbs[Math.floor(Math.random() * verbs.length)]);
+    }
+    selectedVerbs.sort(() => Math.random() - 0.5);
+
+    // 4. 生成した主語と動詞をガッチャンコする
+    for (let i = 0; i < N; i++) {
+        quizSet.push(createQ(selectedVerbs[i], subjectPool[i]));
+    }
+
+    showScreen('screen-quiz');
+    renderQuestion();
+}
         quizSet.sort(() => Math.random() - 0.5);
         showScreen('screen-quiz');
         renderQuestion();
     }
 
-    function createQ(v) {
-        const s = subjects[Math.floor(Math.random() * subjects.length)];
+    function createQ(v, s) {
+        // 主語 s を引数として受け取るように変更
         const ctx = v.contexts[Math.floor(Math.random() * v.contexts.length)];
         let subLabel = (s.id === 'je' && v.vowel) ? "j'" : (s.id === 'je' ? "je " : s.label + " ");
         return { subLabel, context: ctx, correct: v.forms[s.id], subjectId: s.id, mean: v.mean, allForms: Object.values(v.forms) };
