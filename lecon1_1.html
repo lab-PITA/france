@@ -127,13 +127,24 @@
     <header>フランス語 活用ドリル (L1-L3)</header>
 
     <div id="screen-start" class="screen active">
-        <div style="margin-top:40px; text-align:center">
-            <h2>活用をマスターしよう</h2>
-            <p>画像リストの動詞のみを使用。<br>選択肢を見る前に頭の中で答えを出しましょう。</p>
-            <button class="btn" style="background:var(--primary); color:white; width:100%; margin-top:30px; border:none;" onclick="initQuiz()">練習を開始する</button>
-          <a href="index.html" class="btn" style="display:block; text-align:center; text-decoration:none; background:#eee; color:#333; width:100%; margin-top:15px; border:none; box-sizing:border-box;">ポータル（目次）に戻る</a>
+    <div style="margin-top:40px; text-align:center">
+        <h2>活用をマスターしよう</h2>
+        <p>主語が均等に出題されます。<br>選択肢を見る前に頭の中で答えを出しましょう。</p>
+        
+        <div style="margin: 20px 0; text-align: left;">
+            <label style="font-weight: bold; color: #666;">問題数を選択:</label>
+            <select id="count-select" style="width: 100%; padding: 12px; margin-top: 8px; border-radius: 10px; border: 1px solid #ddd; font-size: 1rem;">
+                <option value="5">5問</option>
+                <option value="10" selected>10問</option>
+                <option value="20">20問</option>
+                <option value="all">全問</option>
+            </select>
         </div>
+
+        <button class="btn" style="background:var(--primary); color:white; width:100%; margin-top:10px; border:none;" onclick="initQuiz()">練習を開始する</button>
+        <a href="index.html" class="btn" style="display:block; text-align:center; text-decoration:none; background:#eee; color:#333; width:100%; margin-top:15px; border:none; box-sizing:border-box;">ポータル（目次）に戻る</a>
     </div>
+</div>
 
     <div id="screen-quiz" class="screen">
         <div id="progress" style="text-align:right; font-size:0.8rem; color:#999">1 / 15</div>
@@ -195,55 +206,29 @@
     const countVal = document.getElementById('count-select').value;
     quizSet = []; currentIndex = 0; results = [];
 
-    // 1. 総出題数 (N) を確定させる
-    const totalVerbsCount = verbs.length * 6; // 理論上の全問題数
-    const N = countVal === 'all' ? totalVerbsCount : parseInt(countVal);
-
-    // 2. 主語プールを計算で作成
+    // 出題数と均等な主語リストの作成
+    const N = countVal === 'all' ? verbs.length * 6 : parseInt(countVal);
     let subjectPool = [];
-    const baseCount = Math.floor(N / subjects.length); // 各主語が最低出る回数
-    const remainder = N % subjects.length;           // 余り
+    const baseCount = Math.floor(N / subjects.length);
+    const remainder = N % subjects.length;
 
-    // 全主語を均等に baseCount 分追加
-    for (let i = 0; i < baseCount; i++) {
-        subjects.forEach(s => subjectPool.push(s));
-    }
-    // 余り（端数）をランダムな主語で埋める
-    let extraSubjects = [...subjects].sort(() => Math.random() - 0.5).slice(0, remainder);
-    subjectPool = subjectPool.concat(extraSubjects);
-    
-    // 主語の順番をシャッフル
-    subjectPool.sort(() => Math.random() - 0.5);
+    for (let i = 0; i < baseCount; i++) { subjects.forEach(s => subjectPool.push(s)); }
+    let extra = [...subjects].sort(() => Math.random() - 0.5).slice(0, remainder);
+    subjectPool = subjectPool.concat(extra).sort(() => Math.random() - 0.5);
 
-    // 3. 動詞の選定
+    // 動詞の選定
     const eVerb = verbs.find(v => v.inf === "être");
     const aVerb = verbs.find(v => v.inf === "avoir");
-    let selectedVerbs = [];
-
-    // être, avoir を優先的に入れる（Nが小さい場合を考慮）
-    if (N >= 4) {
-        for(let i=0; i<2; i++) selectedVerbs.push(eVerb);
-        for(let i=0; i<2; i++) selectedVerbs.push(aVerb);
-    }
-
-    // 残りの枠をランダムな動詞で埋める
-    while(selectedVerbs.length < N) {
-        selectedVerbs.push(verbs[Math.floor(Math.random() * verbs.length)]);
-    }
+    let selectedVerbs = [eVerb, eVerb, aVerb, aVerb];
+    while(selectedVerbs.length < N) { selectedVerbs.push(verbs[Math.floor(Math.random() * verbs.length)]); }
     selectedVerbs.sort(() => Math.random() - 0.5);
 
-    // 4. 生成した主語と動詞をガッチャンコする
-    for (let i = 0; i < N; i++) {
-        quizSet.push(createQ(selectedVerbs[i], subjectPool[i]));
-    }
+    // 問題生成
+    for (let i = 0; i < N; i++) { quizSet.push(createQ(selectedVerbs[i], subjectPool[i])); }
 
     showScreen('screen-quiz');
     renderQuestion();
 }
-        quizSet.sort(() => Math.random() - 0.5);
-        showScreen('screen-quiz');
-        renderQuestion();
-    }
 
     function createQ(v, s) {
         // 主語 s を引数として受け取るように変更
