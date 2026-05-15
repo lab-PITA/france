@@ -90,7 +90,7 @@
         .help-table td, .help-table th { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .help-table th { background: #f8f9fa; text-align: center; }
 
-        .result-area { display: grid; grid-template-rows: auto  auto auto; height: 100%; }
+		.result-area { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
         .result-scroll { overflow-y: auto; }
         .res-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
         .res-table td, .res-table th { padding: 12px 4px; border-bottom: 1px solid #eee; text-align: center; }
@@ -192,7 +192,7 @@
             <h2>結果発表</h2>
             <div class="result-scroll">
                 <table class="res-table">
-                    <thead><tr><th style="width:15%">結</th><th>文章</th><th style="width:25%">正解</th></tr></thead>
+                    <thead><tr><th style="width:15%">結</th><th>文章</th><th style="width:25%">答</th></tr></thead>
                     <tbody id="result-body"></tbody>
                 </table>
             </div>
@@ -501,7 +501,7 @@ document.querySelector('.btn-u').style.display = 'none';        const area = doc
             tr.className = `res-${r.status}`;
             tr.innerHTML = `<td>${r.status==='o'?'〇':(r.status==='x'?'×':'？')}</td>
                             <td style="text-align:left">${r.q.replace("<span class='blank-line'></span>", "<b>"+r.a+"</b>")}</td>
-                            <td>${r.a}</td>`;
+                            <td>${r.userAns === 'u' ? '？' : r.userAns}</td>`;
             body.appendChild(tr);
         });
     }
