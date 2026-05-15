@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>フランス語 形容詞活用ドリル</title>
+    <style>
+        :root { --primary: #007bff; --wrong: #dc3545; --unknown: #6c757d; --bg: #f4f7f9; }
+        
+        body { font-family: -apple-system, sans-serif; background-color: var(--bg); margin: 0; display: grid; place-items: center; height: 100vh; overflow: hidden; }
+
+        .app-container { width: 430px; height: 100%; background: white; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: grid; grid-template-rows: 60px 1fr; }
+        @media (max-width: 430px) { .app-container { width: 100vw; } }
+
+        header { border-bottom: 2px solid #eee; line-height: 60px; text-align: center; font-weight: bold; position: relative; }
+        .help-btn { position: absolute; right: 15px; top: 13px; width: 34px; height: 34px; background: #eee; border: 1px solid #ccc; border-radius: 50%; cursor: pointer; line-height: 34px; font-size: 1.2rem; }
+
+        .screen { display: none; padding: 20px; box-sizing: border-box; overflow: hidden; }
+        .screen.active { display: block; }
+
+        .question-box { display: grid; grid-template-rows: 20px 1fr auto auto; height: 100%; gap: 10px; }
+        .sentence-display { font-size: 1.5rem; font-weight: bold; text-align: center; padding-top: 40px; line-height: 1.6; }
+        .blank-line { display: inline-block; width: 100px; border-bottom: 3px solid var(--primary); margin: 0 5px; vertical-align: text-bottom; }
+
+        .choice-grid { display: none; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: 10px; }
+        .btn-choice { height: 70px; font-size: 1.1rem; font-weight: bold; border-radius: 12px; border: 2px solid #ddd; background: white; cursor: pointer; }
+        .btn-show { width: 100%; height: 100px; background: var(--primary); color: white; border: none; border-radius: 15px; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+        .btn-u { width: 100%; height: 50px; background: #f0f0f0; border: none; border-radius: 10px; color: #666; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+
+        .start-btn { width: 100%; height: 60px; background: var(--primary); color: white; border: none; border-radius: 15px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 15px;margin-bottom: 15px; }
+        .btn-portal { display: block; width: 100%; height: 60px; background: #eee; color: #333; border-radius: 15px; text-decoration: none; text-align: center; line-height: 60px; font-weight: bold; margin-top: 10px;margin-bottom: 15px; }
+
+        #help-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 200; display: none; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        .help-section { margin-bottom: 25px; }
+        .help-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 8px; }
+        .help-table td, .help-table th { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        .help-table th { background: #f8f9fa; text-align: center; }
+
+        .result-area { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+        .result-scroll { overflow-y: auto; }
+        .res-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .res-table td, .res-table th { padding: 12px 4px; border-bottom: 1px solid #eee; text-align: center; }
+        .res-o { color: var(--primary); }
+        .res-x { color: var(--wrong); font-weight: bold; background: #fff5f5; }
+        .res-u { color: var(--unknown); background: #f1f3f5; }
+
+        #feedback { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 10rem; z-index: 150; display: none; pointer-events: none; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        形容詞活用ドリル
+        <div class="help-btn" onclick="toggleHelp(true)">?</div>
+    </header>
+
+    <div id="help-overlay">
+        <div style="text-align:right; font-size:2rem; cursor:pointer;" onclick="toggleHelp(false)">×</div>
+        
+        <div class="help-section">
+            <h3 style="border-bottom:2px solid #333; font-size:1rem;">1. 形容詞の位置と基本ルール</h3>
+            <p style="font-size:0.8rem; line-height:1.4;">
+                ・原則として<b>名詞の後</b>に置かれる。<br>
+                ・短い、使用頻度の高い形容詞（grand, petit, beau, vieux等）は<b>名詞の前</b>に置かれる。<br>
+                ・名詞の前に複数形容詞がある場合、不定冠詞の <b>des は de</b> に変わる。
+            </p>
+        </div>
+
+        <div class="help-section">
+            <h3 style="border-bottom:2px solid #333; font-size:1rem;">2. 不規則な女性形</h3>
+            <table class="help-table">
+                <tr><th>語尾変化</th><th>例</th></tr>
+                <tr><td>-er → -ère</td><td>étranger → étrangère</td></tr>
+                <tr><td>-f → -ve</td><td>naïf → naïve</td></tr>
+                <tr><td>-x → -se</td><td>heureux → heureuse</td></tr>
+                <tr><td>子音を重ねる</td><td>bon → bonne / gros → grosse</td></tr>
+                <tr><td>特殊変化</td><td>blanc → blanche / long → longue</td></tr>
+            </table>
+        </div>
+
+        <div class="help-section">
+            <h3 style="border-bottom:2px solid #333; font-size:1rem;">3. 男性単数第2形（母音衝突回避）</h3>
+            <p style="font-size:0.8rem;">母音・無音hで始まる男性単数名詞の前では特殊な形を使う。</p>
+            <table class="help-table">
+                <tr><th>通常</th><th>第2形</th><th>例</th></tr>
+                <tr><td>beau</td><td><b>bel</b></td><td>un bel oiseau</td></tr>
+                <tr><td>nouveau</td><td><b>nouvel</b></td><td>un nouvel élève</td></tr>
+                <tr><td>vieux</td><td><b>vieil</b></td><td>un vieil homme</td></tr>
+            </table>
+        </div>
+
+        <div class="help-section">
+            <h3 style="border-bottom:2px solid #333; font-size:1rem;">4. 複数形の作り方</h3>
+            <table class="help-table">
+                <tr><th>ルール</th><th>例</th></tr>
+                <tr><td>通常 (+s)</td><td>petits, grandes</td></tr>
+                <tr><td>不変 (-s, -x)</td><td>bas, heureux</td></tr>
+                <tr><td>-eau/eu (+x)</td><td>beaux, cheveux</td></tr>
+                <tr><td>-al → -aux</td><td>cheval → chevaux</td></tr>
+                <tr><td>特殊</td><td>oeil → yeux / monsieur → messieurs</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div id="setup-screen" class="screen active">
+        <h2 style="text-align:center; margin-top:40px;">形容詞活用トレーニング</h2>
+        <div style="margin-top:30px;">
+            <label style="font-weight:bold; color:#666;">出題数を選択</label>
+            <select id="count-select" style="width:100%; padding:15px; margin-top:10px; border-radius:10px; font-size:1rem;">
+                <option value="10">10問</option>
+                <option value="20" selected>20問</option>
+                <option value="all">全問</option>
+            </select>
+        </div>
+        <button class="start-btn" onclick="initQuiz()">学習開始</button>
+        <a href="index.html" class="btn-portal">ポータルに戻る</a>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div class="question-box">
+            <div id="progress" style="text-align:right; color:#999; font-size:0.8rem;"></div>
+            <div id="display-q" class="sentence-display"></div>
+            
+            <div id="choice-container">
+                <button id="btn-show-id" class="btn-show" onclick="showChoices()">選択肢を表示</button>
+                <div class="choice-grid" id="choice-area"></div>
+                <button class="btn-u" onclick="handleAnswer('u')">わからない</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div class="result-area">
+            <h2>結果発表</h2>
+            <div class="result-scroll">
+                <table class="res-table">
+                    <thead><tr><th style="width:15%">結</th><th>文章</th><th style="width:25%">正解</th></tr></thead>
+                    <tbody id="result-body"></tbody>
+                </table>
+            </div>
+            <button class="start-btn" onclick="location.reload()">トップに戻る</button>
+        </div>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<script>
+        const database = [
+    { fr: "aimable", variants: ["aimable", "aimables"], sentences: [
+        { q: "Il est <span class='blank-line'></span>.", a: "aimable", tr: "彼は親切です。" },
+        { q: "Elle est <span class='blank-line'></span>.", a: "aimable", tr: "彼女は親切です。" },
+        { q: "Ils sont <span class='blank-line'></span>.", a: "aimables", tr: "彼らは親切です。" }
+    ]},
+    { fr: "anglais", variants: ["anglais", "anglaise", "anglaises"], sentences: [
+        { q: "C'est un livre <span class='blank-line'></span>.", a: "anglais", tr: "それはイギリスの本です。" },
+        { q: "C'est une revue <span class='blank-line'></span>.", a: "anglaise", tr: "それはイギリスの雑誌です。" },
+        { q: "Ce sont des voitures <span class='blank-line'></span>.", a: "anglaises", tr: "それらはイギリスの車です。" }
+    ]},
+    { fr: "blond", variants: ["blond", "blonde", "blonds", "blondes"], sentences: [
+        { q: "Il est <span class='blank-line'></span>.", a: "blond", tr: "彼はブロンドです。" },
+        { q: "Elle est <span class='blank-line'></span>.", a: "blonde", tr: "彼女はブロンドです。" },
+        { q: "Ils sont <span class='blank-line'></span>.", a: "blonds", tr: "彼らはブロンドです。" }
+    ]},
+    { fr: "charmant", variants: ["charmant", "charmante", "charmants", "charmantes"], sentences: [
+        { q: "Il est <span class='blank-line'></span>.", a: "charmant", tr: "彼は魅力的です。" },
+        { q: "Elle est <span class='blank-line'></span>.", a: "charmante", tr: "彼女は魅力的です。" },
+        { q: "Voici des enfants <span class='blank-line'></span>.", a: "charmants", tr: "こちらは魅力的な子供たちです。" }
+    ]},
+    { fr: "chaud", variants: ["chaud", "chaude", "chauds", "chaudes"], sentences: [
+        { q: "Le café est <span class='blank-line'></span>.", a: "chaud", tr: "コーヒーは熱いです。" },
+        { q: "La viande est <span class='blank-line'></span>.", a: "chaude", tr: "肉は温かいです。" },
+        { q: "J'ai les mains <span class='blank-line'></span>.", a: "chaudes", tr: "私は手が温かいです。" }
+    ]},
+    { fr: "français", variants: ["français", "française", "françaises"], sentences: [
+        { q: "Il est <span class='blank-line'></span>.", a: "français", tr: "彼はフランス人です。" },
+        { q: "Elle est <span class='blank-line'></span>.", a: "française", tr: "彼女はフランス人です。" },
+        { q: "J'aime les voitures <span class='blank-line'></span>.", a: "françaises", tr: "私はフランスの車が好きです。" }
+    ]},
+    { fr: "froid", variants: ["froid", "froide", "froids", "froides"], sentences: [
+        { q: "Le vin est <span class='blank-line'></span>.", a: "froid", tr: "ワインは冷たいです。" },
+        { q: "L'eau est <span class='blank-line'></span>.", a: "froide", tr: "水は冷たいです。" },
+        { q: "Il y a des vents <span class='blank-line'></span>.", a: "froids", tr: "冷たい風が吹いています。" }
+    ]},
+    { fr: "grand", variants: ["grand", "grande", "grands", "grandes"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> jardin.", a: "grand", tr: "それは大きな庭です。" },
+        { q: "C'est une <span class='blank-line'></span> ville.", a: "grande", tr: "それは大きな都市です。" },
+        { q: "Ce sont de <span class='blank-line'></span> arbres.", a: "grands", tr: "それらは大きな木です。" }
+    ]},
+    { fr: "japonais", variants: ["japonais", "japonaise", "japonaises"], sentences: [
+        { q: "C'est un appareil <span class='blank-line'></span>.", a: "japonais", tr: "それは日本の機器です。" },
+        { q: "Elle est <span class='blank-line'></span>.", a: "japonaise", tr: "彼女は日本人です。" },
+        { q: "Ce sont des églises <span class='blank-line'></span>.", a: "japonaises", tr: "それらは日本の教会です。" }
+    ]},
+    { fr: "joli", variants: ["joli", "jolie", "jolis", "jolies"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> bijou.", a: "joli", tr: "それはきれいなアクセサリーです。" },
+        { q: "C'est une <span class='blank-line'></span> photo.", a: "jolie", tr: "それはきれいな写真です。" },
+        { q: "Elle porte de <span class='blank-line'></span> robes.", a: "jolies", tr: "彼女はきれいなドレスを着ています。" }
+    ]},
+    { fr: "petit", variants: ["petit", "petite", "petits", "petites"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> sac.", a: "petit", tr: "それは小さなバッグです。" },
+        { q: "Elle veut une <span class='blank-line'></span> maison.", a: "petite", tr: "彼女は小さな家を欲しがっています。" },
+        { q: "Ce sont de <span class='blank-line'></span> paquets.", a: "petits", tr: "それらは小さな小包です。" }
+    ]},
+    { fr: "américain", variants: ["américain", "américaine", "américains", "américaines"], sentences: [
+        { q: "C'est un film <span class='blank-line'></span>.", a: "américain", tr: "それはアメリカの映画です。" },
+        { q: "C'est une voiture <span class='blank-line'></span>.", a: "américaine", tr: "それはアメリカの車です。" },
+        { q: "J'aime les acteurs <span class='blank-line'></span>.", a: "américains", tr: "私はアメリカの俳優たちが好きです。" }
+    ]},
+    { fr: "ancien", variants: ["ancien", "ancienne", "anciens", "anciennes"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> château.", a: "ancien", tr: "それは古いお城です。" },
+        { q: "C'est une <span class='blank-line'></span> église.", a: "ancienne", tr: "それは古い教会です。" },
+        { q: "Ce sont des livres <span class='blank-line'></span>.", a: "anciens", tr: "それらは古い本です。" }
+    ]},
+{ fr: "intelligent", variants: ["intelligent", "intelligente", "intelligents", "intelligentes"], sentences: [
+        { q: "Cet homme est <span class='blank-line'></span>.", a: "intelligent", tr: "この男性は知的です。" },
+        { q: "Cette femme est <span class='blank-line'></span>.", a: "intelligente", tr: "この女性は知的です。" },
+        { q: "Ce sont des femmes <span class='blank-line'></span>.", a: "intelligentes", tr: "彼女たちは知的な女性たちです。" }
+    ]},
+    { fr: "intéressant", variants: ["intéressant", "intéressante", "intéressants", "intéressantes"], sentences: [
+        { q: "C'est un livre <span class='blank-line'></span>.", a: "intéressant", tr: "それは面白い本です。" },
+        { q: "C'est une revue <span class='blank-line'></span>.", a: "intéressante", tr: "それは面白い雑誌です。" },
+        { q: "Ce sont des sujets <span class='blank-line'></span>.", a: "intéressants", tr: "それらは興味深い主題です。" }
+    ]},
+    { fr: "jeune", variants: ["jeune", "jeunes"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> homme.", a: "jeune", tr: "それは若い男性です。" },
+        { q: "Elle est très <span class='blank-line'></span>.", a: "jeune", tr: "彼女はとても若いです。" },
+        { q: "Ce sont de <span class='blank-line'></span> professeurs.", a: "jeunes", tr: "彼らは若い先生たちです。" }
+    ]},
+    { fr: "mauvais", variants: ["mauvais", "mauvaise", "mauvaises"], sentences: [
+        { q: "C'est une <span class='blank-line'></span> habitude.", a: "mauvaise", tr: "それは悪い習慣です。" },
+        { q: "C'est un <span class='blank-line'></span> choix.", a: "mauvais", tr: "それは悪い選択です。" },
+        { q: "Ce sont de <span class='blank-line'></span> nouvelles.", a: "mauvaises", tr: "それらは悪いニュースです。" }
+    ]},
+    { fr: "mignon", variants: ["mignon", "mignonne", "mignons", "mignonnes"], sentences: [
+        { q: "Ce chat est <span class='blank-line'></span>.", a: "mignon", tr: "この猫はかわいいです。" },
+        { q: "Cette enfant est <span class='blank-line'></span>.", a: "mignonne", tr: "この子供はかわいいです。" },
+        { q: "Les petits oiseaux sont <span class='blank-line'></span>.", a: "mignons", tr: "小鳥たちはかわいいです。" }
+    ]},
+    { fr: "nouveau", variants: ["nouveau", "nouvel", "nouvelle", "nouveaux", "nouvelles"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> élève.", a: "nouvel", tr: "それは一人の新入生です。" },
+        { q: "C'est une <span class='blank-line'></span> école.", a: "nouvelle", tr: "それは新しい学校です。" },
+        { q: "J'ai un <span class='blank-line'></span> vélo.", a: "nouveau", tr: "私は新しい自転車を持っています。" }
+    ]},
+    { fr: "tout", variants: ["tout", "toute", "tous", "toutes"], sentences: [
+        { q: "J'aime <span class='blank-line'></span> le français.", a: "tout", tr: "私はフランス語のすべてが好きです。" },
+        { q: "Elle travaille <span class='blank-line'></span> la journée.", a: "toute", tr: "彼女は一日中働いています。" },
+        { q: "<span class='blank-line'></span> les étudiants sont ici.", a: "Tous", tr: "学生たちは全員ここにいます。" }
+    ]},
+    { fr: "vieux", variants: ["vieux", "vieil", "vieille", "vieilles"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> homme.", a: "vieil", tr: "それは一人の老人です。" },
+        { q: "C'est une <span class='blank-line'></span> robe.", a: "vieille", tr: "それは一着の古いドレスです。" },
+        { q: "J'ai un <span class='blank-line'></span> château.", a: "vieux", tr: "私は古いお城を持っています。" }
+    ]},
+    { fr: "admirable", variants: ["admirable", "admirables"], sentences: [
+        { q: "C'est un acteur <span class='blank-line'></span>.", a: "admirable", tr: "彼は感嘆すべき俳優です。" },
+        { q: "C'est une actrice <span class='blank-line'></span>.", a: "admirable", tr: "彼女は感嘆すべき女優です。" },
+        { q: "Ce sont des films <span class='blank-line'></span>.", a: "admirables", tr: "それらは見事な映画です。" }
+    ]},
+    { fr: "amusant", variants: ["amusant", "amusante", "amusants", "amusantes"], sentences: [
+        { q: "C'est un jeu <span class='blank-line'></span>.", a: "amusant", tr: "それはおもしろい遊びです。" },
+        { q: "C'est une photo <span class='blank-line'></span>.", a: "amusante", tr: "それはおもしろい写真です。" },
+        { q: "Ce sont des histoires <span class='blank-line'></span>.", a: "amusantes", tr: "それらはおもしろいお話です。" }
+    ]},
+    { fr: "beau", variants: ["beau", "bel", "belle", "beaux", "belles"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> oiseau.", a: "bel", tr: "それは一羽の美しい鳥です。" },
+        { q: "C'est un <span class='blank-line'></span> jardin.", a: "beau", tr: "それは美しい庭です。" },
+        { q: "C'est une <span class='blank-line'></span> étoile.", a: "belle", tr: "それは光り輝く星です。" }
+    ]},
+    { fr: "blanc", variants: ["blanc", "blanche", "blancs", "blanches"], sentences: [
+        { q: "Il porte un veston <span class='blank-line'></span>.", a: "blanc", tr: "彼は白い上着を着ています。" },
+        { q: "Elle porte une chemise <span class='blank-line'></span>.", a: "blanche", tr: "彼女は白いシャツを着ています。" },
+        { q: "J'aime les chevaux <span class='blank-line'></span>.", a: "blancs", tr: "私は白い馬たちが好きです。" }
+    ]},
+    { fr: "chinois", variants: ["chinois", "chinoise", "chinoises"], sentences: [
+        { q: "J'apprends le <span class='blank-line'></span>.", a: "chinois", tr: "私は中国語を学んでいます。" },
+        { q: "C'est une voiture <span class='blank-line'></span>.", a: "chinoise", tr: "それは中国の車です。" },
+        { q: "Ce sont des journaux <span class='blank-line'></span>.", a: "chinois", tr: "それらは中国の新聞です。" }
+    ]},
+{ fr: "heureux", variants: ["heureux", "heureuse", "heureuses"], sentences: [
+        { q: "Il est <span class='blank-line'></span>.", a: "heureux", tr: "彼は幸せです。" },
+        { q: "Elle est <span class='blank-line'></span>.", a: "heureuse", tr: "彼女は幸せです。" },
+        { q: "Elles sont <span class='blank-line'></span>.", a: "heureuses", tr: "彼女たちは幸せです。" }
+    ]},
+    { fr: "long", variants: ["long", "longue", "longs", "longues"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> voyage.", a: "long", tr: "それは長い旅行です。" },
+        { q: "C'est une <span class='blank-line'></span> leçon.", a: "longue", tr: "それは長い授業です。" },
+        { q: "Ce sont de <span class='blank-line'></span> routes.", a: "longues", tr: "それらは長い道です。" }
+    ]},
+    { fr: "naïf", variants: ["naïf", "naïve", "naïfs", "naïves"], sentences: [
+        { q: "Il est <span class='blank-line'></span>.", a: "naïf", tr: "彼はお人よしです。" },
+        { q: "Elle est <span class='blank-line'></span>.", a: "naïve", tr: "彼女はお人よしです。" },
+        { q: "Ils sont <span class='blank-line'></span>.", a: "naïfs", tr: "彼らはお人よしです。" }
+    ]},
+    { fr: "neuf", variants: ["neuf", "neuve", "neufs", "neuves"], sentences: [
+        { q: "J'ai un veston <span class='blank-line'></span>.", a: "neuf", tr: "私は新しい上着を持っています。" },
+        { q: "Elle a une robe <span class='blank-line'></span>.", a: "neuve", tr: "彼女は新しいドレスを持っています。" },
+        { q: "Il achète des chaussures <span class='blank-line'></span>.", a: "neuves", tr: "彼は新しい靴を買います。" }
+    ]},
+    { fr: "parisien", variants: ["parisien", "parisienne", "parisiens", "parisiennes"], sentences: [
+        { q: "C'est un journal <span class='blank-line'></span>.", a: "parisien", tr: "それはパリの新聞です。" },
+        { q: "Elle est <span class='blank-line'></span>.", a: "parisienne", tr: "彼女はパリジェンヌです。" },
+        { q: "J'aime les cafés <span class='blank-line'></span>.", a: "parisiens", tr: "私はパリのカフェが好きです。" }
+    ]},
+    { fr: "ennuyeux", variants: ["ennuyeux", "ennuyeuse", "ennuyeuses"], sentences: [
+        { q: "C'est un travail <span class='blank-line'></span>.", a: "ennuyeux", tr: "それは退屈な仕事です。" },
+        { q: "Cette situation est <span class='blank-line'></span>.", a: "ennuyeuse", tr: "この状況は困ったものです。" },
+        { q: "Ce sont des exercices <span class='blank-line'></span>.", a: "ennuyeux", tr: "これらは退屈な練習問題です。" }
+    ]},
+    { fr: "étranger", variants: ["étranger", "étrangère", "étrangers", "étrangères"], sentences: [
+        { q: "Il visite un pays <span class='blank-line'></span>.", a: "étranger", tr: "彼は外国を訪問します。" },
+        { q: "J'étudie une langue <span class='blank-line'></span>.", a: "étrangère", tr: "私は外国語を勉強しています。" },
+        { q: "Ce sont des étudiants <span class='blank-line'></span>.", a: "étrangers", tr: "彼らは外国人留学生です。" }
+    ]},
+    { fr: "gros", variants: ["gros", "grosse", "grosses"], sentences: [
+        { q: "C'est un <span class='blank-line'></span> paquet.", a: "gros", tr: "それは大きな小包です。" },
+        { q: "C'est une <span class='blank-line'></span> femme.", a: "grosse", tr: "それは太った女性です。" },
+        { q: "Il a de <span class='blank-line'></span> chiens.", a: "gros", tr: "彼は大きな犬を飼っています。" }
+    ]},
+    { fr: "postal", variants: ["postal", "postale", "postaux", "postales"], sentences: [
+        { q: "Quel義務 est le code <span class='blank-line'></span> ?", a: "postal", tr: "郵便番号は何番ですか？" },
+        { q: "C'est une carte <span class='blank-line'></span>.", a: "postale", tr: "それは郵便はがきです。" },
+        { q: "Ce sont des chèques <span class='blank-line'></span>.", a: "postaux", tr: "それらは郵便小切手です。" }
+    ]},
+    { fr: "précieux", variants: ["précieux", "précieuse", "précieuses"], sentences: [
+        { q: "C'est un bijou <span class='blank-line'></span>.", a: "précieux", tr: "それは貴重なアクセサリーです。" },
+        { q: "C'est une pierre <span class='blank-line'></span>.", a: "précieuse", tr: "それは宝石（貴重な石）です。" },
+        { q: "J'ai des souvenirs <span class='blank-line'></span>.", a: "précieux", tr: "私には大切な思い出があります。" }
+    ]},
+    { fr: "rouge", variants: ["rouge", "rouges"], sentences: [
+        { q: "Il a un stylo <span class='blank-line'></span>.", a: "rouge", tr: "彼は赤いペンを持っています。" },
+        { q: "C'est une voiture <span class='blank-line'></span>.", a: "rouge", tr: "それは赤い車です。" },
+        { q: "Elle aime les fleurs <span class='blank-line'></span>.", a: "rouges", tr: "彼女は赤い花が好きです。" }
+    ]},
+    { fr: "brun", variants: ["brun", "brune", "bruns", "brunes"], sentences: [
+        { q: "Il est <span class='blank-line'></span>.", a: "brun", tr: "彼は茶色い髪（褐色）をしています。" },
+        { q: "Elle porte une robe <span class='blank-line'></span>.", a: "brune", tr: "彼女は茶色のドレスを着ています。" },
+        { q: "Ce sont des sacs <span class='blank-line'></span>.", a: "bruns", tr: "それらは茶色のバッグです。" }
+    ]},
+    { fr: "bleu", variants: ["bleu", "bleue", "bleus", "bleues"], sentences: [
+        { q: "Le ciel est <span class='blank-line'></span>.", a: "bleu", tr: "空は青いです。" },
+        { q: "C'est une chemise <span class='blank-line'></span>.", a: "bleue", tr: "それは青いシャツです。" },
+        { q: "Il regarde ses yeux <span class='blank-line'></span>.", a: "bleus", tr: "彼は彼女の青い目を見ています。" }
+    ]},
+    { fr: "seul", variants: ["seul", "seule", "seuls", "seules"], sentences: [
+        { q: "Il est <span class='blank-line'></span>.", a: "seul", tr: "彼は一人です。" },
+        { q: "Elle travaille <span class='blank-line'></span>.", a: "seule", tr: "彼女は一人で働いています。" },
+        { q: "Ils sont <span class='blank-line'></span>.", a: "seuls", tr: "彼らは二人きり（彼らだけ）です。" }
+    ]},
+    { fr: "noir", variants: ["noir", "noire", "noirs", "noires"], sentences: [
+        { q: "C'est un chat <span class='blank-line'></span>.", a: "noir", tr: "それは黒猫です。" },
+        { q: "J'habite une maison <span class='blank-line'></span>.", a: "noire", tr: "私は黒い家に住んでいます。" },
+        { q: "Il porte des gants <span class='blank-line'></span>.", a: "noirs", tr: "彼は黒い手袋をはめています。" }
+    ]}
+];
+
+
+
+    let quizSet = []; let currentIndex = 0; let userResults = [];
+
+    function initQuiz() {
+        const countVal = document.getElementById('count-select').value;
+        let pool = [];
+        database.forEach(d => { d.sentences.forEach(s => { pool.push({...s, variants: d.variants, fr: d.fr}); }); });
+        
+        pool.sort(() => Math.random() - 0.5);
+        let n = countVal === 'all' ? pool.length : parseInt(countVal);
+        quizSet = pool.slice(0, n);
+        
+        currentIndex = 0; userResults = [];
+        showScreen('screen-quiz');
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = quizSet[currentIndex];
+        document.getElementById('progress').innerText = `${currentIndex + 1} / ${quizSet.length}`;
+        document.getElementById('display-q').innerHTML = q.q + `<div style="font-size:1.1rem; color:#666; font-weight:normal; margin-top:15px;">${q.tr}</div>`;
+        
+        // 選択肢表示状態のリセット
+        document.getElementById('btn-show-id').style.display = 'block';
+        const area = document.getElementById('choice-area');
+        area.style.display = 'none';
+        area.innerHTML = '';
+        
+        // 選択肢生成：正解＋バリアント＋不足分を補充して計6つ
+        const format = (txt) => q.a[0] === q.a[0].toUpperCase() ? txt.charAt(0).toUpperCase() + txt.slice(1) : txt.toLowerCase();
+        
+        let choices = [...new Set([q.a, ...q.variants])].map(format);
+        // 足りない場合はランダムな形容詞から補充（今回は省略、完全版で追加）
+
+        choices.sort(() => Math.random() - 0.5).slice(0, 6).forEach(c => {
+            const b = document.createElement('button');
+            b.className = 'btn-choice'; b.innerText = c;
+            b.onclick = () => handleAnswer(c);
+            area.appendChild(b);
+        });
+    }
+
+    function showChoices() {
+        document.getElementById('btn-show-id').style.display = 'none';
+        document.getElementById('choice-area').style.display = 'grid';
+    }
+
+    function handleAnswer(ans) {
+        const q = quizSet[currentIndex];
+        const isCorrect = (ans.toLowerCase() === q.a.toLowerCase());
+        const status = ans === 'u' ? 'u' : (isCorrect ? 'o' : 'x');
+        userResults.push({...q, userAns: ans, status});
+
+        const fb = document.getElementById('feedback');
+        fb.innerText = status === 'o' ? '〇' : (status === 'x' ? '×' : '？');
+        fb.style.color = status === 'o' ? 'var(--primary)' : (status === 'x' ? 'var(--wrong)' : 'var(--unknown)');
+        fb.style.display = 'block';
+
+        setTimeout(() => {
+            fb.style.display = 'none';
+            currentIndex++;
+            if(currentIndex < quizSet.length) renderQuestion(); else showFinalResult();
+        }, 600);
+    }
+
+    function showFinalResult() {
+    showScreen('result-screen');
+    const body = document.getElementById('result-body');
+    body.innerHTML = '';
+
+    const order = { u: 1, x: 2, o: 3 };
+    userResults.sort((a, b) => {
+        // 1. ステータス順 (わからない > 間違い > 正解)
+        if (order[a.status] !== order[b.status]) {
+            return order[a.status] - order[b.status];
+        }
+        // 2. 同じステータス内では単語のアルファベット順 (fr)
+        return (a.fr || "").localeCompare(b.fr || "");
+    });
+
+    userResults.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = `res-${r.status}`;
+            tr.innerHTML = `<td>${r.status==='o'?'〇':(r.status==='x'?'×':'？')}</td>
+                            <td style="text-align:left">${r.q.replace("<span class='blank-line'></span>", "<b>"+r.a+"</b>")}</td>
+                            <td>${r.a}</td>`;
+            body.appendChild(tr);
+        });
+    }
+
+    function toggleHelp(s) { document.getElementById('help-overlay').style.display = s ? 'block' : 'none'; }
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+</script>
+</body>
+</html>
