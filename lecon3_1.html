@@ -418,12 +418,40 @@
 
     function initQuiz() {
         const countVal = document.getElementById('count-select').value;
-        let pool = [];
-        database.forEach(d => { d.sentences.forEach(s => { pool.push({...s, variants: d.variants, fr: d.fr}); }); });
         
-        pool.sort(() => Math.random() - 0.5);
-        let n = countVal === 'all' ? pool.length : parseInt(countVal);
-        quizSet = pool.slice(0, n);
+        // 特殊変化する単語のリスト
+        const specialList = ["ancien", "mignon", "nouveau", "tout", "vieux", "beau", "blanc", "heureux", "long", "naïf", "neuf", "parisien", "ennuyeux", "étranger", "gros", "postal", "précieux"];
+        
+        let specialPool = [];
+        let normalPool = [];
+        
+        // データベースを「特殊」と「通常」に分ける
+        database.forEach(d => {
+            d.sentences.forEach(s => {
+                const item = {...s, variants: d.variants, fr: d.fr};
+                if (specialList.includes(d.fr)) {
+                    specialPool.push(item);
+                } else {
+                    normalPool.push(item);
+                }
+            });
+        });
+        
+        // それぞれをシャッフル
+        specialPool.sort(() => Math.random() - 0.5);
+        normalPool.sort(() => Math.random() - 0.5);
+        
+        let n = countVal === 'all' ? (specialPool.length + normalPool.length) : parseInt(countVal);
+        
+        // 半分（端数切り上げ）を特殊プールから、残りを通常プールから抽出
+        const half = Math.ceil(n / 2);
+        quizSet = [
+            ...specialPool.slice(0, half),
+            ...normalPool.slice(0, n - half)
+        ];
+        
+        // 最後に全体をもう一度シャッフルして出題順をバラバラにする
+        quizSet.sort(() => Math.random() - 0.5);
         
         currentIndex = 0; userResults = [];
         showScreen('screen-quiz');
