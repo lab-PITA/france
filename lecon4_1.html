@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>フランス語 タイピング活用ドリル</title>
+    <style>
+        :root { --primary: #007bff; --wrong: #dc3545; --unknown: #6c757d; --bg: #f4f7f9; }
+        
+        body { font-family: -apple-system, sans-serif; background-color: var(--bg); margin: 0; display: grid; place-items: center; height: 100vh; overflow: hidden; }
+
+        .app-container { width: 430px; height: 100%; background: white; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: grid; grid-template-rows: 60px 1fr; }
+        @media (max-width: 430px) { .app-container { width: 100vw; } }
+
+        header { border-bottom: 2px solid #eee; line-height: 60px; text-align: center; font-weight: bold; position: relative; }
+
+        .screen { display: none; padding: 20px; box-sizing: border-box; overflow: hidden; height: 100%; }
+        .screen.active { display: block; }
+
+        .question-box {
+            display: grid;
+            grid-template-rows: auto auto auto; 
+            height: 100%;
+            align-content: start;
+            gap: 10px;
+            box-sizing: border-box;
+        }
+
+        .top-content {
+            min-height: 140px;
+            display: grid;
+            align-items: center;
+        }
+
+        .sentence-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .blank-line { display: inline-block; width: 100px; border-bottom: 3px solid var(--primary); margin: 0 5px; vertical-align: text-bottom; color: var(--primary); }
+
+        #input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            margin-top: 30px;
+        }
+
+        .text-input {
+            width: 100%;
+            height: 60px;
+            font-size: 1.5rem;
+            text-align: center;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            box-sizing: border-box;
+            background-color: #fafafa;
+            /* スマホの自動変換を防ぐ */
+            appearance: none;
+        }
+        .text-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background-color: #fff;
+        }
+
+        .btn-submit { width: 100%; height: 60px; font-size: 1.2rem; font-weight: bold; border-radius: 12px; border: none; background: var(--primary); color: white; cursor: pointer; }
+        .btn-submit:active { background: #0056b3; }
+        
+        .btn-u { width: 100%; height: 50px; background: #f0f0f0; border: none; border-radius: 10px; color: #666; font-size: 1rem; cursor: pointer; margin-top: 5px; }
+
+        .start-btn { width: 100%; height: 60px; background: var(--primary); color: white; border: none; border-radius: 15px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 15px; margin-bottom: 15px; }
+        .btn-portal { display: block; width: 100%; height: 60px; background: #eee; color: #333; border-radius: 15px; text-decoration: none; text-align: center; line-height: 60px; font-weight: bold; margin-top: 10px; margin-bottom: 15px; }
+
+        .result-area { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+        .result-scroll { overflow-y: auto; }
+        .res-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .res-table td, .res-table th { padding: 12px 4px; border-bottom: 1px solid #eee; text-align: center; }
+        .res-o { color: var(--primary); }
+        .res-x { color: var(--wrong); font-weight: bold; background: #fff5f5; }
+        .res-u { color: var(--unknown); background: #f1f3f5; }
+
+        #feedback { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 10rem; z-index: 150; display: none; pointer-events: none; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>タイピング活用ドリル</header>
+
+    <div id="setup-screen" class="screen active">
+        <h2 style="text-align:center; margin-top:40px;">キーボード入力テスト</h2>
+        <p style="text-align:center; font-size:0.9rem; color:#666;">
+            特殊な変化をする名詞・形容詞・非er動詞を<br>中心に、自力でスペルを入力する特訓です。
+        </p>
+        <div style="margin-top:30px;">
+            <label style="font-weight:bold; color:#666;">出題数を選択</label>
+            <select id="count-select" style="width:100%; padding:15px; margin-top:10px; border-radius:10px; font-size:1rem;">
+                <option value="5" selected>5問</option>
+                <option value="10">10問</option>
+                <option value="15">15問</option>
+            </select>
+        </div>
+        <button class="start-btn" onclick="initQuiz()">学習開始</button>
+        <a href="index.html" class="btn-portal">ポータルに戻る</a>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div class="question-box">
+            <div id="progress" style="text-align:right; color:#999; font-size:0.8rem;"></div>
+            
+            <div class="top-content">
+                <div id="display-q" class="sentence-display"></div>
+            </div>
+            
+            <div id="input-container">
+                <input type="text" id="answer-input" class="text-input" 
+                       placeholder="ここに入力..." 
+                       autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+                
+                <button class="btn-submit" onclick="submitAnswer()">回答する</button>
+                <button class="btn-u" onclick="handleAnswer('u')">わからない</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div class="result-area">
+            <h2>結果発表</h2>
+            <div class="result-scroll">
+                <table class="res-table">
+                    <thead><tr><th style="width:15%">結</th><th>文章</th><th style="width:25%">あなたの答</th><th style="width:25%">正解</th></tr></thead>
+                    <tbody id="result-body"></tbody>
+                </table>
+            </div>
+            <button class="start-btn" onclick="location.reload()">トップに戻る</button>
+        </div>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<script>
+    const database = [
+        // --- 特殊な名詞の複数形 ---
+        { type: 'special', q: "Ils ont de grands <span class='blank-line'></span>.", a: "nez", tr: "彼らは大きな鼻をしています。" },
+        { type: 'special', q: "Voici des <span class='blank-line'></span> rouges.", a: "nez", tr: "ここに赤い鼻があります。" },
+        { type: 'special', q: "Il n'y a pas de <span class='blank-line'></span>.", a: "nez", tr: "鼻がありません。" },
+        
+        { type: 'special', q: "Ce sont de bons <span class='blank-line'></span>.", a: "choix", tr: "それらは良い選択です。" },
+        { type: 'special', q: "Il y a beaucoup de <span class='blank-line'></span>.", a: "choix", tr: "たくさんの選択肢があります。" },
+        { type: 'special', q: "Je n'ai pas de <span class='blank-line'></span>.", a: "choix", tr: "私には選択肢がありません。" },
+
+        { type: 'special', q: "Elle a les <span class='blank-line'></span> longs.", a: "cheveux", tr: "彼女は髪が長いです。" },
+        { type: 'special', q: "Il n'a pas de <span class='blank-line'></span>.", a: "cheveux", tr: "彼には髪がありません。" },
+        { type: 'special', q: "Je vais laver mes <span class='blank-line'></span>.", a: "cheveux", tr: "私は髪を洗うつもりです。" },
+
+        { type: 'special', q: "Voici des <span class='blank-line'></span> blancs.", a: "chevaux", tr: "ここに白い馬たちがいます。" },
+        { type: 'special', q: "Il n'y a que trois <span class='blank-line'></span>.", a: "chevaux", tr: "3頭の馬しかいません。" },
+        { type: 'special', q: "Aimez-vous les <span class='blank-line'></span> ?", a: "chevaux", tr: "あなたは馬が好きですか？" },
+
+        { type: 'special', q: "C'est un magasin de <span class='blank-line'></span>.", a: "bijoux", tr: "それは宝石店です。" },
+        { type: 'special', q: "Elle n'achète jamais de <span class='blank-line'></span>.", a: "bijoux", tr: "彼女は決して宝石を買いません。" },
+        { type: 'special', q: "Où sont tes <span class='blank-line'></span> ?", a: "bijoux", tr: "君のアクセサリーはどこ？" },
+
+        { type: 'special', q: "Il a les <span class='blank-line'></span> bleus.", a: "yeux", tr: "彼は青い目をしています。" },
+        { type: 'special', q: "Fermez les <span class='blank-line'></span> !", a: "yeux", tr: "目を閉じて！" },
+        { type: 'special', q: "Je n'en crois pas mes <span class='blank-line'></span>.", a: "yeux", tr: "私は自分の目が信じられない。" },
+
+        // --- 特殊な形容詞 ---
+        { type: 'special', q: "C'est une <span class='blank-line'></span> idée.", a: "bonne", tr: "それは良い考えです。" },
+        { type: 'special', q: "Ce n'est pas du tout <span class='blank-line'></span>.", a: "bon", tr: "それは全然良くない。" },
+        { type: 'special', q: "Voici de <span class='blank-line'></span> gâteaux.", a: "bons", tr: "ここに美味しいケーキがあります。" },
+
+        { type: 'special', q: "Il y a une <span class='blank-line'></span> voiture.", a: "grosse", tr: "大きな車があります。" },
+        { type: 'special', q: "Ce n'est pas un <span class='blank-line'></span> problème.", a: "gros", tr: "それは大きな問題ではありません。" },
+        { type: 'special', q: "Voici de <span class='blank-line'></span> chiens.", a: "gros", tr: "ここに大きな犬たちがいます。" },
+
+        { type: 'special', q: "C'est ma <span class='blank-line'></span> maison.", a: "nouvelle", tr: "それは私の新しい家です。" },
+        { type: 'special', q: "Voici un <span class='blank-line'></span> élève.", a: "nouvel", tr: "こちらが新しい生徒です。" },
+        { type: 'special', q: "Je n'ai pas de <span class='blank-line'></span> amis.", a: "nouveaux", tr: "私には新しい友達がいません。" },
+
+        { type: 'special', q: "C'est une <span class='blank-line'></span> histoire.", a: "vieille", tr: "それは古い話です。" },
+        { type: 'special', q: "Je viens de voir un <span class='blank-line'></span> homme.", a: "vieil", tr: "私は老人を見たところです。" },
+        { type: 'special', q: "Ce ne sont pas de <span class='blank-line'></span> amis.", a: "vieux", tr: "彼らは古い友人ではありません。" },
+
+        { type: 'special', q: "C'est une très <span class='blank-line'></span> fille.", a: "belle", tr: "彼女はとても美しい少女です。" },
+        { type: 'special', q: "Il n'y a qu'un <span class='blank-line'></span> oiseau.", a: "bel", tr: "美しい鳥が1羽しかいません。" },
+        { type: 'special', q: "Quels <span class='blank-line'></span> paysages !", a: "beaux", tr: "なんて美しい風景！" },
+
+        { type: 'special', q: "Je n'étudie jamais de langue <span class='blank-line'></span>.", a: "étrangère", tr: "私は外国語を決して勉強しません。" },
+        { type: 'special', q: "Voici des étudiants <span class='blank-line'></span>.", a: "étrangers", tr: "こちらは留学生たちです。" },
+        { type: 'special', q: "C'est un pays <span class='blank-line'></span>.", a: "étranger", tr: "それは外国（見知らぬ国）です。" },
+
+        { type: 'special', q: "Elle n'est pas du tout <span class='blank-line'></span>.", a: "naïve", tr: "彼女は全くお人好しではありません。" },
+        { type: 'special', q: "Il est encore <span class='blank-line'></span>.", a: "naïf", tr: "彼はまだ世間知らずです。" },
+        { type: 'special', q: "Ne soyez pas si <span class='blank-line'></span>s !", a: "naïfs", tr: "そんなにお人好しにならないで！" },
+
+        { type: 'special', q: "N'est-elle pas <span class='blank-line'></span> ?", a: "heureuse", tr: "彼女は幸せではないのですか？" },
+        { type: 'special', q: "Ils sont très <span class='blank-line'></span>s.", a: "heureux", tr: "彼らはとても幸せです。" },
+        { type: 'special', q: "Je ne suis pas encore <span class='blank-line'></span>.", a: "heureux", tr: "私はまだ幸せではありません。" },
+
+        { type: 'special', q: "Voici une fleur <span class='blank-line'></span>.", a: "blanche", tr: "ここに白い花があります。" },
+        { type: 'special', q: "Il ne boit que du vin <span class='blank-line'></span>.", a: "blanc", tr: "彼は白ワインしか飲みません。" },
+        { type: 'special', q: "Il y a des nuages <span class='blank-line'></span>s.", a: "blancs", tr: "白い雲があります。" },
+
+        { type: 'special', q: "C'est une <span class='blank-line'></span> lettre.", a: "longue", tr: "それは長い手紙です。" },
+        { type: 'special', q: "Le voyage n'est pas <span class='blank-line'></span>.", a: "long", tr: "旅行は長くありません。" },
+        { type: 'special', q: "Il y a de <span class='blank-line'></span>s files.", a: "longues", tr: "長い列があります。" },
+
+        // --- 非er動詞 (L1~L4) ---
+        { type: 'special', q: "Je ne <span class='blank-line'></span> pas encore prêt.", a: "suis", tr: "私はまだ準備ができていません。" },
+        { type: 'special', q: "<span class='blank-line'></span>-vous japonais ?", a: "Êtes", tr: "あなたは日本人ですか？" },
+        { type: 'special', q: "Ce ne <span class='blank-line'></span> pas mes amis.", a: "sont", tr: "彼らは私の友人ではありません。" },
+
+        { type: 'special', q: "Il n'y <span class='blank-line'></span> personne ici.", a: "a", tr: "ここには誰もいません。" },
+        { type: 'special', q: "Je n'<span class='blank-line'></span> que 10 euros.", a: "ai", tr: "私は10ユーロしか持っていません。" },
+        { type: 'special', q: "<span class='blank-line'></span>-ils faim ?", a: "Ont", tr: "彼らはお腹が空いていますか？" },
+
+        { type: 'special', q: "Je <span class='blank-line'></span> manger au café.", a: "vais", tr: "私はカフェで食べるつもりです。" },
+        { type: 'special', q: "Il ne <span class='blank-line'></span> pas du tout bien.", a: "va", tr: "彼は全く元気ではありません。" },
+        { type: 'special', q: "Où <span class='blank-line'></span>-nous ?", a: "allons", tr: "私たちはどこに行きますか？" },
+
+        { type: 'special', q: "Elle <span class='blank-line'></span> de partir.", a: "vient", tr: "彼女は出発したところです。" },
+        { type: 'special', q: "Ne <span class='blank-line'></span>-tu pas avec moi ?", a: "viens", tr: "私と一緒に来ないの？" },
+        { type: 'special', q: "Ils <span class='blank-line'></span> du Japon.", a: "viennent", tr: "彼らは日本から来ます。" },
+
+        { type: 'special', q: "Je ne <span class='blank-line'></span> plus marcher.", a: "peux", tr: "私はもう歩けません。" },
+        { type: 'special', q: "<span class='blank-line'></span>-vous m'aider ?", a: "Pouvez", tr: "私を手伝ってくれますか？" },
+        { type: 'special', q: "Personne ne <span class='blank-line'></span> le faire.", a: "peut", tr: "誰もそれをすることはできません。" },
+
+        { type: 'special', q: "Je ne <span class='blank-line'></span> rien boire.", a: "veux", tr: "私は何も飲みたくありません。" },
+        { type: 'special', q: "Que <span class='blank-line'></span>-tu manger ?", a: "veux", tr: "君は何を食べたい？" },
+        { type: 'special', q: "Ils ne <span class='blank-line'></span> que jouer.", a: "veulent", tr: "彼らは遊んでばかりいたい。" },
+
+        { type: 'special', q: "Je <span class='blank-line'></span> bientôt.", a: "finis", tr: "私はもうすぐ終わります。" },
+        { type: 'special', q: "Il ne <span class='blank-line'></span> jamais à l'heure.", a: "finit", tr: "彼は決して時間通りに終わらない。" },
+        { type: 'special', q: "Quand <span class='blank-line'></span>-vous ?", a: "finissez", tr: "あなたはいつ終わりますか？" },
+
+        { type: 'special', q: "Je ne <span class='blank-line'></span> pas ce livre.", a: "choisis", tr: "私はこの本を選びません。" },
+        { type: 'special', q: "Qu'est-ce qu'elle <span class='blank-line'></span> ?", a: "choisit", tr: "彼女は何を選びますか？" },
+        { type: 'special', q: "Nous <span class='blank-line'></span> le rouge.", a: "choisissons", tr: "私たちは赤を選びます。" },
+
+        { type: 'special', q: "Le chien n'<span class='blank-line'></span> pas du tout.", a: "obéit", tr: "その犬は全く従いません。" },
+        { type: 'special', q: "Vous <span class='blank-line'></span> aux règles.", a: "obéissez", tr: "あなた方は規則に従います。" },
+        { type: 'special', q: "Je n'<span class='blank-line'></span> à personne.", a: "obéis", tr: "私は誰にも従いません。" },
+
+        { type: 'special', q: "Je vais <span class='blank-line'></span> à l'examen.", a: "réussir", tr: "私は試験に合格するつもりです。" },
+        { type: 'special', q: "Il ne <span class='blank-line'></span> jamais rien.", a: "réussit", tr: "彼は決して何も成功しない。" },
+        { type: 'special', q: "<span class='blank-line'></span>-tu ton projet ?", a: "Réussis", tr: "君はプロジェクトに成功している？" },
+
+        // --- ER動詞 ---
+        { type: 'er', q: "Je n'<span class='blank-line'></span> pas du tout ça.", a: "aime", tr: "私はそれが全く好きではありません。" },
+        { type: 'er', q: "N'<span class='blank-line'></span>-vous pas le jazz ?", a: "aimez", tr: "あなたはジャズが好きではないですか？" },
+        { type: 'er', q: "Elle n'<span class='blank-line'></span> que le chocolat.", a: "aime", tr: "彼女はチョコレートしか好きではありません。" },
+
+        { type: 'er', q: "Il n'<span class='blank-line'></span> plus ici.", a: "habite", tr: "彼はもうここに住んでいません。" },
+        { type: 'er', q: "Où <span class='blank-line'></span>-vous ?", a: "habitez", tr: "どこにお住まいですか？" },
+        { type: 'er', q: "Je vais <span class='blank-line'></span> au Japon.", a: "habiter", tr: "私は日本に住むつもりです。" },
+
+        { type: 'er', q: "La télé ne <span class='blank-line'></span> pas.", a: "marche", tr: "テレビが動きません。" },
+        { type: 'er', q: "Nous <span class='blank-line'></span> beaucoup.", a: "marchons", tr: "私たちはたくさん歩きます。" },
+        { type: 'er', q: "Il vient de <span class='blank-line'></span>.", a: "marcher", tr: "彼は歩いたところです。" },
+
+        { type: 'er', q: "Il ne <span class='blank-line'></span> à personne.", a: "parle", tr: "彼は誰とも話しません。" },
+        { type: 'er', q: "Je vais lui <span class='blank-line'></span>.", a: "parler", tr: "私は彼に話すつもりです。" },
+        { type: 'er', q: "Ne <span class='blank-line'></span>-tu pas anglais ?", a: "parles", tr: "君は英語を話さないの？" },
+
+        { type: 'er', q: "Je ne <span class='blank-line'></span> pas aujourd'hui.", a: "travaille", tr: "私は今日は働きません。" },
+        { type: 'er', q: "Où <span class='blank-line'></span>-t-elle ?", a: "travaille", tr: "彼女はどこで働いていますか？" },
+        { type: 'er', q: "Ils <span class='blank-line'></span> aux États-Unis.", a: "travaillent", tr: "彼らはアメリカで働いています。" },
+
+        { type: 'er', q: "Elle ne <span class='blank-line'></span> jamais.", a: "chante", tr: "彼女は決して歌いません。" },
+        { type: 'er', q: "Qui <span class='blank-line'></span> cette chanson ?", a: "chante", tr: "誰がこの歌を歌っていますか？" },
+        { type: 'er', q: "Je vais <span class='blank-line'></span> ce soir.", a: "chanter", tr: "私は今晩歌うつもりです。" },
+
+        { type: 'er', q: "Je ne <span class='blank-line'></span> pas du tout.", a: "danse", tr: "私は全く踊りません。" },
+        { type: 'er', q: "<span class='blank-line'></span>-vous avec moi ?", a: "Dansez", tr: "私と踊りませんか？" },
+        { type: 'er', q: "Ils viennent de <span class='blank-line'></span>.", a: "danser", tr: "彼らは踊ったところです。" },
+
+        { type: 'er', q: "Je n'<span class='blank-line'></span> rien.", a: "achète", tr: "私は何も買いません。" },
+        { type: 'er', q: "Que vas-tu <span class='blank-line'></span> ?", a: "acheter", tr: "君は何を買うつもり？" },
+        { type: 'er', q: "Nous <span class='blank-line'></span> des légumes.", a: "achetons", tr: "私たちは野菜を買います。" },
+
+        { type: 'er', q: "J'<span class='blank-line'></span> ce film !", a: "adore", tr: "私はこの映画が大好きです。" },
+        { type: 'er', q: "Ils n'<span class='blank-line'></span> pas la pluie.", a: "adorent", tr: "彼らは雨が好きではありません。" },
+        { type: 'er', q: "Qui n'<span class='blank-line'></span> pas ça ?", a: "adore", tr: "誰がそれを好きではないですか？" },
+
+        { type: 'er', q: "Il <span class='blank-line'></span> à la gare.", a: "arrive", tr: "彼は駅に到着します。" },
+        { type: 'er', q: "Je viens d'<span class='blank-line'></span>.", a: "arriver", tr: "私は到着したところです。" },
+        { type: 'er', q: "Elles n'<span class='blank-line'></span> pas encore.", a: "arrivent", tr: "彼女たちはまだ到着していません。" },
+
+        { type: 'er', q: "Il ne <span class='blank-line'></span> que peu.", a: "gagne", tr: "彼は少ししか稼ぎません。" },
+        { type: 'er', q: "Nous allons <span class='blank-line'></span> !", a: "gagner", tr: "私たちは勝つつもりです！" },
+        { type: 'er', q: "<span class='blank-line'></span>-vous bien ?", a: "Gagnez", tr: "あなたはよく稼ぎますか？" },
+
+        { type: 'er', q: "Je viens de <span class='blank-line'></span> au resto.", a: "manger", tr: "私はレストランで食べたところです。" },
+        { type: 'er', q: "Nous ne <span class='blank-line'></span> pas encore.", a: "mangeons", tr: "私たちはまだ食べません。" },
+        { type: 'er', q: "Il ne <span class='blank-line'></span> que du pain.", a: "mange", tr: "彼はパンしか食べません。" },
+
+        { type: 'er', q: "Je <span class='blank-line'></span> le thé au café.", a: "préfère", tr: "私はコーヒーより紅茶が好きです。" },
+        { type: 'er', q: "Que <span class='blank-line'></span>-tu ?", a: "préfères", tr: "君はどちらが好き？" },
+        { type: 'er', q: "Nous <span class='blank-line'></span> rester ici.", a: "préférons", tr: "私たちはここに残るほうがいいです。" },
+
+        { type: 'er', q: "Je n'<span class='blank-line'></span> pas de lettre.", a: "envoie", tr: "私は手紙を送りません。" },
+        { type: 'er', q: "Voulez-vous l'<span class='blank-line'></span> ?", a: "envoyer", tr: "あなたはそれを送りたいですか？" },
+        { type: 'er', q: "Ils m'<span class='blank-line'></span> un mail.", a: "envoient", tr: "彼らは私にメールを送ります。" },
+
+        { type: 'er', q: "Je ne <span class='blank-line'></span> jamais la télé.", a: "regarde", tr: "私は決してテレビを見ません。" },
+        { type: 'er', q: "Que <span class='blank-line'></span>-vous ?", a: "regardez", tr: "あなたは何を見ていますか？" },
+        { type: 'er', q: "Nous allons le <span class='blank-line'></span>.", a: "regarder", tr: "私たちはそれを見るつもりです。" },
+
+        { type: 'er', q: "Personne n'<span class='blank-line'></span>.", a: "écoute", tr: "誰も聞いていません。" },
+        { type: 'er', q: "Je viens d'<span class='blank-line'></span> la radio.", a: "écouter", tr: "私はラジオを聞いたところです。" },
+        { type: 'er', q: "Vous ne m'<span class='blank-line'></span> pas.", a: "écoutez", tr: "あなたは私の話を聞いていません。" },
+
+        { type: 'er', q: "Je ne <span class='blank-line'></span> rien.", a: "cherche", tr: "私は何も探していません。" },
+        { type: 'er', q: "Que <span class='blank-line'></span>-ils ?", a: "cherchent", tr: "彼らは何を探していますか？" },
+        { type: 'er', q: "Nous allons <span class='blank-line'></span> les clés.", a: "chercher", tr: "私たちは鍵を探すつもりです。" },
+
+        { type: 'er', q: "Il ne <span class='blank-line'></span> plus au tennis.", a: "joue", tr: "彼はもうテニスをしません。" },
+        { type: 'er', q: "Aimez-vous <span class='blank-line'></span> ?", a: "jouer", tr: "あなたは遊ぶのが好きですか？" },
+        { type: 'er', q: "Ils <span class='blank-line'></span> du piano.", a: "jouent", tr: "彼らはピアノを弾きます。" },
+
+        { type: 'er', q: "Je ne lui <span class='blank-line'></span> rien.", a: "donne", tr: "私は彼に何もあげません。" },
+        { type: 'er', q: "Vas-tu me le <span class='blank-line'></span> ?", a: "donner", tr: "私にそれをくれるの？" },
+        { type: 'er', q: "Nous lui <span class='blank-line'></span> un cadeau.", a: "donnons", tr: "私たちは彼にプレゼントをあげます。" },
+
+        { type: 'er', q: "N'<span class='blank-line'></span> pas !", a: "Entrez", tr: "入らないで！" },
+        { type: 'er', q: "Je viens d'<span class='blank-line'></span>.", a: "entrer", tr: "私は入ったところです。" },
+        { type: 'er', q: "Ils <span class='blank-line'></span> dans la salle.", a: "entrent", tr: "彼らは部屋に入ります。" },
+
+        { type: 'er', q: "Je ne <span class='blank-line'></span> pas la porte.", a: "ferme", tr: "私はドアを閉めません。" },
+        { type: 'er', q: "<span class='blank-line'></span> la fenêtre, s'il te plaît.", a: "Ferme", tr: "窓を閉めてください。" },
+        { type: 'er', q: "Nous allons <span class='blank-line'></span> le magasin.", a: "fermer", tr: "私たちは店を閉めるつもりです。" },
+
+        { type: 'er', q: "Il n'<span class='blank-line'></span> jamais de vin.", a: "apporte", tr: "彼は決してワインを持ってきません。" },
+        { type: 'er', q: "Que vas-tu <span class='blank-line'></span> ?", a: "apporter", tr: "何を持ってくるつもり？" },
+        { type: 'er', q: "Nous <span class='blank-line'></span> le dessert.", a: "apportons", tr: "私たちはデザートを持っていきます。" }
+    ];
+
+    let quizSet = []; 
+    let currentIndex = 0; 
+    let userResults = [];
+    const inputField = document.getElementById('answer-input');
+
+    // Enterキーを押したときの処理
+    inputField.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); 
+            inputField.blur(); // 判定はせず、フォーカスを外してキーボードを隠す
+        }
+    });
+
+    function initQuiz() {
+        const countVal = parseInt(document.getElementById('count-select').value);
+        
+        // 特殊プール(80%) と erプール(20%) に分ける
+        let specialPool = database.filter(d => d.type === 'special').sort(() => Math.random() - 0.5);
+        let erPool = database.filter(d => d.type === 'er').sort(() => Math.random() - 0.5);
+        
+        let erCount = Math.floor(countVal * 0.2); // er動詞は全体の20%
+        let specialCount = countVal - erCount;    // 残りの80%を特殊変化問題に
+        
+        quizSet = [
+            ...specialPool.slice(0, specialCount),
+            ...erPool.slice(0, erCount)
+        ].sort(() => Math.random() - 0.5); // 最後に混ざるように全体をシャッフル
+        
+        currentIndex = 0; userResults = [];
+        showScreen('screen-quiz');
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = quizSet[currentIndex];
+        document.getElementById('progress').innerText = `${currentIndex + 1} / ${quizSet.length}`;
+        document.getElementById('display-q').innerHTML = q.q + `<div style="font-size:1.1rem; color:#666; font-weight:normal; margin-top:15px;">${q.tr}</div>`;
+        
+        inputField.value = '';
+        inputField.focus(); 
+    }
+
+    function submitAnswer() {
+        const userInput = inputField.value.trim().toLowerCase();
+        if (userInput === '') return;
+        handleAnswer(userInput);
+    }
+
+    function handleAnswer(ans) {
+        inputField.blur(); // キーボードを引っ込める
+
+        const q = quizSet[currentIndex];
+        const isCorrect = (ans === q.a.toLowerCase());
+        const status = ans === 'u' ? 'u' : (isCorrect ? 'o' : 'x');
+        
+        userResults.push({...q, userAns: ans, status});
+
+        const fb = document.getElementById('feedback');
+        fb.innerText = status === 'o' ? '〇' : (status === 'x' ? '×' : '？');
+        fb.style.color = status === 'o' ? 'var(--primary)' : (status === 'x' ? 'var(--wrong)' : 'var(--unknown)');
+        fb.style.display = 'block';
+
+        setTimeout(() => {
+            fb.style.display = 'none'<button class="btn-submit" onclick="submitAnswer()">回答する (Enter)</butto
+            currentIndex++;
+            if(currentIndex < quizSet.length) {
+                renderQuestion();
+            } else {
+                showFinalResult();
+            }
+        }, 800); 
+    }
+
+    function showFinalResult() {
+        showScreen('result-screen');
+        const body = document.getElementById('result-body');
+        body.innerHTML = '';
+
+        const order = { u: 1, x: 2, o: 3 };
+        userResults.sort((a, b) => order[a.status] - order[b.status]);
+
+        userResults.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = `res-${r.status}`;
+            const displayAns = r.userAns === 'u' ? '？' : r.userAns;
+            tr.innerHTML = `<td>${r.status==='o'?'〇':(r.status==='x'?'×':'？')}</td>
+                            <td style="text-align:left">${r.q.replace("<span class='blank-line'></span>", "<b>"+r.a+"</b>")}</td>
+                            <td>${displayAns}</td>
+                            <td>${r.a}</td>`;
+            body.appendChild(tr);
+        });
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+</script>
+</body>
+</html>
