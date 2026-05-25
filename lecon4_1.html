@@ -404,14 +404,15 @@
         fb.style.color = status === 'o' ? 'var(--primary)' : (status === 'x' ? 'var(--wrong)' : 'var(--unknown)');
         fb.style.display = 'block';
 
-        setTimeout(() => {
-            fb.style.display = 'none'            currentIndex++;
+       setTimeout(() => {
+            fb.style.display = 'none';
+            currentIndex++;
             if(currentIndex < quizSet.length) {
                 renderQuestion();
             } else {
                 showFinalResult();
             }
-        }, 800); 
+        }, 800);
     }
 
     function showFinalResult() {
